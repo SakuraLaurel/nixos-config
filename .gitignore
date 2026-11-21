@@ -1,0 +1,15 @@
+# nixos-rebuild build / nix build 的输出链接
+result
+result-*
+
+# 虚拟机/磁盘镜像等构建产物
+*.qcow2
+*.img
+
+# 编辑器与系统垃圾
+.direnv/
+*.swp
+
+sakura-password-hash
+clash-subscribe
+spec.md

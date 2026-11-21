@@ -1,14 +1,20 @@
-{ pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
   imports = [
     ./hardware-configuration.nix
-    ./modules/desktop.nix
-    ./modules/mihomo.nix
     ./users.nix
+    ../../modules/nixos/desktop.nix
+    ../../modules/nixos/mihomo.nix
   ];
 
   nixpkgs.config.allowUnfreePackages = [ "qq" ];
+
   nix = {
     settings = {
       experimental-features = [
@@ -36,44 +42,22 @@
       efi.canTouchEfiVariables = true;
       systemd-boot = {
         enable = true;
-        # ESP 只有 511 MiB，限制保留的启动项。
+        # ESP 只有 511 MiB；日常可用 boot-clean 手动清旧项。
         configurationLimit = 10;
       };
     };
   };
 
+  # NetworkManager 管理有线和无线，Plasma 的网络设置也能直接用。
   networking = {
     hostName = "sakura";
-    useDHCP = false;
-    useNetworkd = true;
+    networkmanager.enable = true;
     firewall.enable = true;
-    wireless.iwd.enable = true;
   };
-  systemd.network = {
-    wait-online.enable = false;
-    networks = {
-      "10-ethernet" = {
-        matchConfig.Type = "ether";
-        networkConfig.DHCP = "yes";
-      };
-      "20-wlan" = {
-        matchConfig.Type = "wlan";
-        networkConfig = {
-          DHCP = "no";
-          Address = "192.168.3.254/24";
-          DNS = "8.8.8.8";
-        };
-        routes = [
-          {
-            Destination = "0.0.0.0/0";
-            Gateway = "192.168.3.1";
-            Metric = 2000;
-          }
-        ];
-      };
-    };
-  };
-  services.resolved.enable = true;
+
+  # 订阅只手动更新，不需要开机等网络就绪。
+  systemd.services.NetworkManager-wait-online.wantedBy = lib.mkForce [ ];
+
   hardware.usb-modeswitch.enable = true;
 
   services.btrfs.autoScrub.enable = true;

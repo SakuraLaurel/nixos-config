@@ -28,7 +28,7 @@
     {
       nixosConfigurations.sakura = nixpkgs.lib.nixosSystem {
         modules = [
-          ./configuration.nix
+          ./hosts/sakura
           home-manager.nixosModules.home-manager
           {
             home-manager = {
@@ -36,11 +36,11 @@
               useUserPackages = true;
               backupFileExtension = "bak";
               sharedModules = [ plasma-manager.homeModules.plasma-manager ];
-              users.sakura = import ./home.nix;
+              users.sakura = import ./hosts/sakura/home.nix;
             };
           }
         ];
       };
-      formatter.${system} = pkgs.nixfmt;
+      formatter.${system} = pkgs.nixfmt-tree;
     };
 }

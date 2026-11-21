@@ -13,7 +13,7 @@ def prepare(config):
     ):
         raise ValueError("订阅需要包含 proxies 列表或 proxy-providers 映射")
 
-    config["mixed-port"] = 7890
+    # 端口、模式、规则全部沿用订阅；这里只关掉会影响本机 DNS/路由的开关。
     config["allow-lan"] = False
     # 这台机器使用显式代理。冷启动时 DNS 解析也不能依赖代理规则。
     for section, key in (("tun", "enable"), ("dns", "respect-rules")):

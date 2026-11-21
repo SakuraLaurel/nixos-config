@@ -1,15 +1,64 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  ...
+}:
 
 let
-  nvimConfig = "${config.home.homeDirectory}/nixos-config/config/nvim";
+  repoPath = "${config.home.homeDirectory}/nixos-config";
+  nvimConfig = "${repoPath}/modules/home/nvim";
+
+  cleanBootEntries = pkgs.writeShellApplication {
+    name = "clean-boot-entries";
+    runtimeInputs = with pkgs; [
+      coreutils
+      gnugrep
+      gnused
+    ];
+    text = ''
+      esp="''${ESP:-/boot}"
+      entries="$esp/loader/entries"
+      current="$(readlink -f /run/current-system)/init"
+      keep=""
+
+      for entry in "$entries"/nixos-*.conf; do
+        [ -e "$entry" ] || continue
+        if grep -qF "init=$current" "$entry"; then
+          keep="$entry"
+          break
+        fi
+      done
+
+      if [ -z "$keep" ]; then
+        echo "找不到当前系统的启动项，未做修改" >&2
+        exit 1
+      fi
+
+      for entry in "$entries"/nixos-*.conf; do
+        if [ "$entry" = "$keep" ]; then
+          continue
+        fi
+        rm -f -- "$entry"
+      done
+
+      default="$(basename "$keep")"
+      if [ -f "$esp/loader/loader.conf" ]; then
+        sed -i -E "s|^default .*|default $default|" "$esp/loader/loader.conf"
+      fi
+      echo "保留启动项：$default"
+    '';
+  };
 in
 {
-  imports = [ ./modules/proxy-client.nix ];
+  imports = [ ../../modules/home/proxy-client.nix ];
 
   home = {
     stateVersion = "26.11";
 
-    packages = with pkgs; [
+    packages = [
+      cleanBootEntries
+    ]
+    ++ (with pkgs; [
       # 编译与调试
       gcc
       gnumake
@@ -39,14 +88,14 @@ in
       deepseek-harness
       pnpm
       qq
-    ];
+    ]);
 
     file.".npmrc".text = ''
       registry=https://registry.npmmirror.com/
     '';
   };
 
-  # 让 init.lua 和 vim.pack 的锁文件都能在仓库中直接编辑。
+  # 让 init.lua 直接在仓库中编辑；插件锁文件由本地生成，不跟踪。
   xdg.configFile.nvim.source = config.lib.file.mkOutOfStoreSymlink nvimConfig;
 
   programs.git = {
@@ -87,13 +136,10 @@ in
       captureRectangularRegion = "Alt+$";
     };
 
-    # 台式机接市电。手动锁屏时也沿用同一个显示器超时设置。
+    # 台式机只接市电：不挂起、不关屏、不调暗，也不自动锁屏。
     powerdevil.AC = {
       autoSuspend.action = "nothing";
-      turnOffDisplay = {
-        idleTimeout = "never";
-        idleTimeoutWhenLocked = "whenLockedAndUnlocked";
-      };
+      turnOffDisplay.idleTimeout = "never";
       dimDisplay.enable = false;
       powerButtonAction = "shutDown";
       powerProfile = "performance";
@@ -102,6 +148,7 @@ in
     kscreenlocker = {
       autoLock = false;
       lockOnResume = false;
+      lockOnStartup = false;
     };
 
     configFile = {
@@ -129,14 +176,16 @@ in
       };
       colorScheme = "RosePineDawn";
     };
-    customColorSchemes.RosePineDawn = ./config/konsole/rose-pine-dawn.colorscheme;
+    customColorSchemes.RosePineDawn = ../../modules/home/konsole/rose-pine-dawn.colorscheme;
   };
 
   programs.bash = {
     enable = true;
     shellAliases = {
       gc = "sudo systemctl start nix-gc.service";
-      rebuild = ''sudo nixos-rebuild switch --flake "$HOME/nixos-config#sakura"'';
+      rebuild = ''sudo nixos-rebuild switch --flake "${repoPath}#sakura"'';
+      mihomo-update = "sudo systemctl start mihomo-subscription.service";
+      boot-clean = "sudo ${cleanBootEntries}/bin/clean-boot-entries";
     };
   };
 }

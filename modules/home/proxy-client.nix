@@ -1,4 +1,5 @@
 let
+  # 端口以 mihomo 订阅为准；这里假设订阅使用 7890，变了要同步改。
   address = "127.0.0.1:7890";
   httpProxy = "http://${address}";
   bypass = "localhost,127.0.0.1,::1";

@@ -59,11 +59,11 @@ in
     cp ${pkgs.dbip-country-lite.mmdb} "$STATE_DIRECTORY/country.mmdb"
   '';
 
+  # 不挂到 multi-user.target / timers：只在 mihomo-update 时手动启动。
   systemd.services.mihomo-subscription = {
-    description = "Update the mihomo subscription";
+    description = "Update the mihomo subscription (manual)";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
-    wantedBy = [ "multi-user.target" ];
 
     unitConfig.ConditionPathExists = subscriptionFile;
 
@@ -84,15 +84,6 @@ in
         "AF_UNIX"
       ];
       TimeoutStartSec = "2min";
-    };
-  };
-
-  systemd.timers.mihomo-subscription = {
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnCalendar = "daily";
-      Persistent = true;
-      RandomizedDelaySec = "30min";
     };
   };
 }

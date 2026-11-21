@@ -1,43 +1,67 @@
-# 安装环境联网
-```bash
-eject /dev/sr0
-nmcli device wifi connect "SSID名称" password "密码"
-```
+# 系统
 
-# btrfs子卷挂载
+- macOS 27.0.1
+- kubuntu 26.04 LTS
 
-```bash
-TARGET=/dev/nvme1n1p2
-sudo mount -o subvol=@,compress=zstd:3,noatime $TARGET /mnt
-sudo mount -o subvol=@home,compress=zstd:3,noatime $TARGET /mnt/home
-sudo mount -o subvol=@nix,compress=zstd:3,noatime $TARGET /mnt/nix
-sudo mount -o subvol=@log,compress=zstd:3,noatime $TARGET /mnt/var/log
-```
+# 输出
 
-# 通过镜像源安装
+- 单一neovim init.lua脚本
+- 单一依赖安装sh脚本，macOS是zsh，kubuntu是bash
 
-```bash
-sudo nixos-install --root /mnt --flake /mnt/home/sakura/nixos#laurel --option substituters https://mirrors.ustc.edu.cn/nix-channels/store
-```
+# 脚本风格
 
-# 检查
-1. hardware-configuration.nix是否更新
-2. password-hash文件必须放在系统所在卷下，否则系统启动时可能读取不到: 
+- 简洁，幂等性以外无防御性，失败直接退出、我修复后重新运行。
+- 先运行sh安装依赖，然后我把init.lua拷贝到目标路径。
+- 只保留必要注释
+- 函数式
 
-```bash
-# 生成
-mkpasswd > sakura-password-hash
-# 验证是否生效
-sudo awk -F: '/^(root|sakura):/ { print $1 ":" $2 }' /mnt/etc/shadow
-```
+# 偏好
 
-# 检查gpu顺序
+- 50%主流 + 20%轻量 + 20%前卫 + 10%原生
+- <leader>用空格键，<localleader>习惯服从主流，不用F键调试
+- 向kickstart.nvim的习惯靠近
 
-```bash
-vulkaninfo --summary | grep -E "GPU[0-9]|deviceName"
-```
+# 依赖
 
-# 手动残余
+- public（已安装）:
+  - neovim 0.12+（跑在默认终端上）
+  - nodejs（用于安装一些语言的lsp）
+  - uv / ruff / ty
+  - clangd
+- macOS:
+  - homebrew（已安装）
+  - clang
+  - lldb
+- kubuntu:
+  - gcc
+  - gdb
 
-1. Discover中安装QQ、微信
-2. KWalletManager密码库管理器 → 更改密码
+# 支持语言:
+
+- Python
+- C++
+- markdown
+- Lua, JSON, TOML
+
+# 指名
+
+- 主题：rose-pine-dawn，保持浅色
+- 插件管理：vim.pack
+- 代码补全：blink.cmp
+- 模糊查找: fzf-lua
+- 格式化：conform.nvim, biome
+- 文件管理：oil.nvim
+- git: gitsigns.nvim, codediff.nvim, 提交走命令行
+- lsp: nvim-lspconfig
+- markdown: render-markdown.nvim
+- 其他: nvim-autopairs, jupytext.nvim
+
+# 注意点
+
+- 核对最新情况，如treesitter被archive后unarchive，重新成为最佳选择
+- 2025 年 3 月，之后 nvim-dap 一直没再发版。nvim-dap-view 1.x 用到了 dap.listeners.on_session，这个接口只在 nvim-dap 的 master 分支上有，0.10.0 里没有。nvim-dap-view 自带 REPL。
+- blink.cmp的默认值不要重复设定
+- 仔细思考rose-pine-dawn + light要如何设置好且只设置必要的。比如colorscheme() 函数包含 termguicolors = true
+- codediff有的功能，不要设置其他插件的快捷键。
+- 不要which-key，有问题我直接问ai
+- 有不确定的，继续问我

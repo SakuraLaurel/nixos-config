@@ -15,9 +15,7 @@ in
   home = {
     stateVersion = "26.11";
 
-    packages = [
-    ]
-    ++ (with pkgs; [
+    packages = with pkgs; [
       # 编译与调试
       gcc
       gnumake
@@ -47,7 +45,7 @@ in
       deepseek-harness
       pnpm
       qq
-    ]);
+    ];
 
     file.".npmrc".text = ''
       registry=https://registry.npmmirror.com/
@@ -127,6 +125,12 @@ in
         Wayland.InputMethod = "/run/current-system/sw/share/applications/fcitx5-wayland-launcher.desktop";
         "Effect-overview".BorderActivate = 9;
       };
+
+      # 数字时钟：showSeconds 是枚举（0=从不，1=悬停，2=总是）。
+      # 2/19 是当前面板的 containment/applet id；重置面板后需要同步。
+      "plasma-org.kde.plasma.desktop-appletsrc" = {
+        "Containments/2/Applets/19/Configuration/Appearance".showSeconds = 2;
+      };
     };
   };
 
@@ -149,8 +153,22 @@ in
       gc = "sudo systemctl start nix-gc.service && systemctl status nix-gc.service --no-pager -n 5";
       rebuild = ''sudo nixos-rebuild switch --flake "${repoPath}#sakura"'';
       update = ''cd "${repoPath}" && nix flake update && sudo nixos-rebuild switch --flake "${repoPath}#sakura"'';
-      mihomo-update = "sudo systemctl start mihomo-subscription.service";
       boot-clean = "sudo nix-env -p /nix/var/nix/profiles/system --delete-generations old && sudo /run/current-system/bin/switch-to-configuration boot && sudo nix-collect-garbage -d";
     };
+
+    # 缺少订阅地址时明确报错；执行完始终打印日志，避免 systemctl 静默失败。
+    initExtra = ''
+      mihomo-update() {
+        local url_file="$HOME/.config/mihomo/subscription-url"
+        if [ ! -s "$url_file" ]; then
+          echo "缺少订阅地址：$url_file" >&2
+          return 1
+        fi
+        sudo systemctl start mihomo-subscription.service
+        local rc=$?
+        systemctl status mihomo-subscription.service --no-pager -n 5
+        return $rc
+      }
+    '';
   };
 }

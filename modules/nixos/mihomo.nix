@@ -50,8 +50,6 @@ in
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
 
-    unitConfig.ConditionPathExists = subscriptionFile;
-
     serviceConfig = {
       Type = "oneshot";
       LoadCredential = "url:${subscriptionFile}";

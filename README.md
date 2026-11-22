@@ -71,6 +71,8 @@ mihomo-update
 systemctl status mihomo
 ```
 
+`mihomo-update` 会先检查订阅文件；缺失或为空时直接报错，不会让 systemd 静默跳过。执行后无论成败都会打印本次 unit 日志。
+
 mihomo 的端口、模式、规则以订阅为准，本仓库不再覆盖 `mixed-port`/`port`。Bash、跟随系统代理的 Brave 和 KDE 应用共用 `127.0.0.1:7890`，本机回环地址直连；如果订阅端口不是 7890，需要同步修改 `modules/home/proxy-client.nix`。两个开关只改变客户端设置，mihomo 继续按原计划运行。其他已打开的终端保留各自的环境，可以在里面再次运行同一开关。
 
 ## 网络与密码

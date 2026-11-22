@@ -69,6 +69,7 @@
     plasma-browser-integration
     plasma-keyboard
     plasma-workspace-wallpapers
+    qrca
     qtvirtualkeyboard
     union
   ];
@@ -84,6 +85,9 @@
     "audio/ogg" = "vlc.desktop";
     "audio/x-opus+ogg" = "vlc.desktop";
     "audio/vnd.wave" = "vlc.desktop";
+    # .mkv 的规范 MIME 是 video/matroska；旧别名一并映射，兼容不同应用。
+    "video/matroska" = "vlc.desktop";
+    "video/x-matroska" = "vlc.desktop";
   };
 
   programs.brave = {

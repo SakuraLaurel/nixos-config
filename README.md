@@ -41,6 +41,8 @@ NixOS、Home Manager 和 plasma-manager 的版本记录在 `flake.lock`。需要
 
 Plasma 设置由 `plasma-manager` 声明，并开启了 `overrideConfig`：每次 activation 会删除或重置未声明的 KDE 配置（Dolphin、KRunner/Klipper、窗口规则、键盘布局、全局快捷键等）。面板/小部件布局（`appletsrc`）、代理开关（`kioslaverc`）和截图保存路径（`spectaclerc`）属于运行时状态，不在重置范围；`plasmashellrc` 也保留，避免重跑 Plasma 迁移脚本。
 
+壁纸由 `workspace.wallpaper` 固定为 `~/Pictures/bliss.jpg`，并通过 `runAlways` 的 Plasma 启动脚本在每次登录时重设。
+
 **截图**。Spectacle 自动保存到其默认截图目录。实际路径见 Spectacle 的图像保存设置。
 
 | 截图范围 | 快捷键 | US 键盘按法 |

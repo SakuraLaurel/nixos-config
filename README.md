@@ -9,10 +9,9 @@
 | `hosts/sakura/default.nix` | 引导、NetworkManager、SSH、Intel 核显、磁盘维护、系统包 |
 | `hosts/sakura/hardware-configuration.nix` | 磁盘 UUID、文件系统、内核模块 |
 | `hosts/sakura/users.nix` | 账户、密码哈希、sudo |
-| `hosts/sakura/home.nix` | 用户包、Plasma、Konsole、Bash 别名、`clean-boot-entries` |
-| `modules/nixos/desktop.nix` | SDDM、输入法、字体、音频、VLC、Brave |
+| `hosts/sakura/home.nix` | 用户包、Plasma、Konsole、Bash 别名 |
+| `modules/nixos/desktop.nix` | ly 登录管理器、输入法、字体、音频、VLC、Brave |
 | `modules/nixos/mihomo.nix` | mihomo 服务与手动订阅更新 unit |
-| `modules/nixos/mihomo-config.py` | 下载订阅后写入本机代理设置 |
 | `modules/home/proxy-client.nix` | Bash 与 KDE 的代理开关 |
 | `modules/home/nvim/init.lua` | Neovim 0.12+ 配置 |
 | `modules/home/konsole/` | Konsole 配色 |
@@ -28,14 +27,15 @@ NixOS、Home Manager 和 plasma-manager 的版本记录在 `flake.lock`。需要
 
 | 在 Bash 中输入 | 效果 |
 | --- | --- |
-| `rebuild` | 从任意目录重建并切换到 sakura 配置 |
+| `rebuild` | 从任意目录重建并切换到 sakura 配置（用当前 `flake.lock`，不更新） |
+| `update` | `nix flake update` 后再 rebuild，即真正的滚动更新 |
 | `gc` | 立即执行每周使用的垃圾回收任务，沿用 14 天保留策略 |
 | `mihomo-update` | 手动拉取订阅并重启 mihomo；开机不会自动拉取 |
-| `boot-clean` | 删除除当前系统外的 systemd-boot 启动项，只保留当前项 |
+| `boot-clean` | 清理到只剩当前 generation：删历史 → 重建启动菜单 → 回收 store |
 | `proxy-on` / `proxy-off` | 同时切换当前终端和 KDE 桌面的代理，新开的 Bash 跟随该选择 |
 | `htop` | 查看 CPU、内存和进程 |
 
-`boot-clean` 只删除 `/boot/loader/entries` 里的旧菜单项，不会删除 Nix store 里的旧 generation；删掉的项不会再出现在启动菜单里，使用前请确认当前系统能正常启动。
+启动菜单平时保留 10 条（`boot.loader.systemd-boot.configurationLimit`），由 NixOS 在每次 rebuild 时自动裁剪。需要回收时用 `boot-clean` 清到只剩当前一个——它删的是 generation，菜单和 `loader.conf` 都由 NixOS 重新生成，不手改 `/boot/loader/entries`。
 
 ## 桌面
 

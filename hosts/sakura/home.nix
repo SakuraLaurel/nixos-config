@@ -8,46 +8,6 @@ let
   repoPath = "${config.home.homeDirectory}/nixos-config";
   nvimConfig = "${repoPath}/modules/home/nvim";
 
-  cleanBootEntries = pkgs.writeShellApplication {
-    name = "clean-boot-entries";
-    runtimeInputs = with pkgs; [
-      coreutils
-      gnugrep
-      gnused
-    ];
-    text = ''
-      esp="''${ESP:-/boot}"
-      entries="$esp/loader/entries"
-      current="$(readlink -f /run/current-system)/init"
-      keep=""
-
-      for entry in "$entries"/nixos-*.conf; do
-        [ -e "$entry" ] || continue
-        if grep -qF "init=$current" "$entry"; then
-          keep="$entry"
-          break
-        fi
-      done
-
-      if [ -z "$keep" ]; then
-        echo "找不到当前系统的启动项，未做修改" >&2
-        exit 1
-      fi
-
-      for entry in "$entries"/nixos-*.conf; do
-        if [ "$entry" = "$keep" ]; then
-          continue
-        fi
-        rm -f -- "$entry"
-      done
-
-      default="$(basename "$keep")"
-      if [ -f "$esp/loader/loader.conf" ]; then
-        sed -i -E "s|^default .*|default $default|" "$esp/loader/loader.conf"
-      fi
-      echo "保留启动项：$default"
-    '';
-  };
 in
 {
   imports = [ ../../modules/home/proxy-client.nix ];
@@ -56,7 +16,6 @@ in
     stateVersion = "26.11";
 
     packages = [
-      cleanBootEntries
     ]
     ++ (with pkgs; [
       # 编译与调试
@@ -189,8 +148,9 @@ in
     shellAliases = {
       gc = "sudo systemctl start nix-gc.service && systemctl status nix-gc.service --no-pager -n 5";
       rebuild = ''sudo nixos-rebuild switch --flake "${repoPath}#sakura"'';
+      update = ''cd "${repoPath}" && nix flake update && sudo nixos-rebuild switch --flake "${repoPath}#sakura"'';
       mihomo-update = "sudo systemctl start mihomo-subscription.service";
-      boot-clean = "sudo ${cleanBootEntries}/bin/clean-boot-entries";
+      boot-clean = "sudo nix-env -p /nix/var/nix/profiles/system --delete-generations old && sudo /run/current-system/bin/switch-to-configuration boot && sudo nix-collect-garbage -d";
     };
   };
 }

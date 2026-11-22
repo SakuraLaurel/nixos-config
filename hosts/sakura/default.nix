@@ -42,7 +42,7 @@
       efi.canTouchEfiVariables = true;
       systemd-boot = {
         enable = true;
-        # ESP 只有 511 MiB；日常可用 boot-clean 手动清旧项。
+        # 平时菜单保留 10 条；要回收就用 boot-clean 清到只剩当前。
         configurationLimit = 10;
       };
     };

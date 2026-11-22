@@ -49,7 +49,7 @@
     notoPackage = pkgs.noto-fonts-lgc-plus;
   };
   services.displayManager = {
-    sddm.enable = true;
+    ly.enable = true;
     autoLogin = {
       enable = true;
       user = "sakura";

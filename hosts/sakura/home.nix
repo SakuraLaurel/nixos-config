@@ -80,10 +80,11 @@ in
   programs.plasma = {
     enable = true;
 
-    # 丢弃 plasma-manager 之外的 KDE 设置；面板几何/更新标记保留，
-    # 否则会重跑 Plasma 的迁移脚本并重置面板厚度、浮动状态。
     overrideConfig = true;
     resetFilesExclude = [ "plasmashellrc" ];
+
+    workspace.wallpaper = "/home/sakura/Pictures/bliss.jpg";
+    startup.desktopScript."wallpaper_picture".runAlways = true;
 
     fonts = {
       general = {
@@ -131,8 +132,6 @@ in
         "Effect-overview".BorderActivate = 9;
       };
 
-      # 数字时钟：showSeconds 是枚举（0=从不，1=悬停，2=总是）。
-      # 2/19 是当前面板的 containment/applet id；重置面板后需要同步。
       "plasma-org.kde.plasma.desktop-appletsrc" = {
         "Containments/2/Applets/19/Configuration/Appearance".showSeconds = 2;
       };

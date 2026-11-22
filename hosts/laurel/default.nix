@@ -48,13 +48,13 @@
 
   # NetworkManager 管理有线和无线，Plasma 的网络设置也能直接用。
   networking = {
-    hostName = "sakura";
+    hostName = "laurel";
     networkmanager.enable = true;
     firewall.enable = true;
   };
 
-  # 数据盘：2T 单盘挂 laurel，两块 256G 合成的 btrfs 挂 maia。
-  fileSystems."/home/sakura/laurel" = {
+  # 数据盘：2T 单盘挂 maia，两块 256G 合成的 btrfs 挂 ganette。
+  fileSystems."/home/sakura/maia" = {
     device = "/dev/disk/by-uuid/56e5fcd6-897f-42d9-90a6-9d3bec6edc8a";
     fsType = "btrfs";
     options = [
@@ -65,7 +65,7 @@
     ];
   };
 
-  fileSystems."/home/sakura/maia" = {
+  fileSystems."/home/sakura/ganette" = {
     device = "/dev/disk/by-uuid/f38c6d5a-3652-48cd-a2a2-6f7a18615959";
     fsType = "btrfs";
     options = [

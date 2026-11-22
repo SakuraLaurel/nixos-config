@@ -26,9 +26,9 @@
       pkgs = nixpkgs.legacyPackages.${system};
     in
     {
-      nixosConfigurations.sakura = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.laurel = nixpkgs.lib.nixosSystem {
         modules = [
-          ./hosts/sakura
+          ./hosts/laurel
           home-manager.nixosModules.home-manager
           {
             home-manager = {
@@ -36,7 +36,7 @@
               useUserPackages = true;
               backupFileExtension = "bak";
               sharedModules = [ plasma-manager.homeModules.plasma-manager ];
-              users.sakura = import ./hosts/sakura/home.nix;
+              users.sakura = import ./hosts/laurel/home.nix;
             };
           }
         ];

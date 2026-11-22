@@ -155,8 +155,8 @@ in
     enable = true;
     shellAliases = {
       gc = "sudo systemctl start nix-gc.service && systemctl status nix-gc.service --no-pager -n 5";
-      rebuild = ''sudo nixos-rebuild switch --flake "${repoPath}#sakura"'';
-      update = ''cd "${repoPath}" && nix flake update && sudo nixos-rebuild switch --flake "${repoPath}#sakura"'';
+      rebuild = ''sudo nixos-rebuild switch --flake "${repoPath}#laurel"'';
+      update = ''cd "${repoPath}" && nix flake update && sudo nixos-rebuild switch --flake "${repoPath}#laurel"'';
       boot-clean = "sudo nix-env -p /nix/var/nix/profiles/system --delete-generations old && sudo /run/current-system/bin/switch-to-configuration boot && sudo nix-collect-garbage -d";
     };
 

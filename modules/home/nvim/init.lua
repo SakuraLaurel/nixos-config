@@ -35,8 +35,8 @@ vim.schedule(function() vim.o.clipboard = 'unnamedplus' end)
 
 local function build_codediff(path)
     for _, argv in ipairs({
-        { 'cmake', '-S', '.', '-B', 'build', '-DCMAKE_BUILD_TYPE=Release' },
-        { 'cmake', '--build', 'build', '--target', 'vscode_diff', '--parallel', '2' },
+        { 'cmake', '-S',      '.',     '-B',       'build',       '-DCMAKE_BUILD_TYPE=Release' },
+        { 'cmake', '--build', 'build', '--target', 'vscode_diff', '--parallel',                '2' },
     }) do
         local result = vim.system(argv, { cwd = path, text = true }):wait()
         assert(result.code == 0, 'CodeDiff build failed:\n' .. (result.stderr or '') .. (result.stdout or ''))
@@ -65,11 +65,11 @@ local gh = function(repo) return 'https://github.com/' .. repo end
 local cb = function(repo) return 'https://codeberg.org/' .. repo end
 
 vim.pack.add({
-    { src = gh('rose-pine/neovim'), name = 'rose-pine' },
+    { src = gh('rose-pine/neovim'),                name = 'rose-pine' },
     { src = gh('nvim-treesitter/nvim-treesitter'), version = 'main' },
     gh('neovim/nvim-lspconfig'),
     -- 固定兼容的 v1 API；使用 Lua 匹配器，不下载平台相关的 Rust 库。
-    { src = gh('saghen/blink.cmp'), version = vim.version.range('1') },
+    { src = gh('saghen/blink.cmp'),      version = vim.version.range('1') },
     gh('ibhagwan/fzf-lua'),
     gh('nvim-mini/mini.icons'),
     gh('stevearc/conform.nvim'),
@@ -79,7 +79,6 @@ vim.pack.add({
     gh('MeanderingProgrammer/render-markdown.nvim'),
     gh('gaoDean/autolist.nvim'),
     gh('windwp/nvim-autopairs'),
-    gh('GCBallesteros/jupytext.nvim'),
     -- 不指定 version 即跟随 master，nvim-dap-view 需要 master 上的 listeners.on_session
     cb('mfussenegger/nvim-dap'),
     cb('mfussenegger/nvim-dap-python'),
@@ -99,10 +98,75 @@ end
 vim.cmd.colorscheme('rose-pine-dawn')
 
 for _, plugin in ipairs({
-    'mini.icons', 'oil', 'gitsigns', 'nvim-autopairs', 'jupytext', 'render-markdown', 'autolist',
+    'mini.icons', 'oil', 'gitsigns', 'nvim-autopairs', 'autolist',
 }) do
     require(plugin).setup()
 end
+
+-- 只保留 markdown 渲染。html/latex/yaml 需要额外的 treesitter parser，
+-- latex 还要 latex2text 或 utftex 二进制，这里不用，关掉以免 :checkhealth 报警。
+require('render-markdown').setup({
+    html = { enabled = false },
+    latex = { enabled = false },
+    yaml = { enabled = false },
+})
+
+-- .ipynb 用 jupytext 转成带 YAML 头的 Python 文本编辑，保存时转回 notebook。
+-- 原来的 GCBallesteros/jupytext.nvim 停更于 2024，会调用 nvim 0.12 已移除的
+-- vim.health.report_start 和 vim.validate{<table>}，这里用几十行替代。
+local notebook = vim.api.nvim_create_augroup('Notebook', { clear = true })
+
+local function jupytext(args)
+    local result = vim.system({ 'jupytext', unpack(args) }, { text = true }):wait()
+    if result.code ~= 0 then
+        local err = result.stderr ~= '' and result.stderr or result.stdout
+        return nil, (err or ''):gsub('%s+$', '')
+    end
+    return true
+end
+
+vim.api.nvim_create_autocmd('BufReadCmd', {
+    group = notebook,
+    pattern = '*.ipynb',
+    callback = function(ev)
+        local path = vim.api.nvim_buf_get_name(ev.buf)
+        local tmp = vim.fn.tempname() .. '.py'
+        local ok, err = jupytext({ '--to', 'py:hydrogen', '--output', tmp, path })
+        if ok then
+            vim.api.nvim_buf_set_lines(ev.buf, 0, -1, false, vim.fn.readfile(tmp))
+            vim.bo[ev.buf].filetype = 'python'
+            vim.bo[ev.buf].modified = false
+        else
+            -- 转换失败时退回原始 JSON，至少不会打开一个空 buffer。
+            vim.notify('jupytext 读取失败：' .. tostring(err), vim.log.levels.WARN)
+            vim.api.nvim_buf_set_lines(ev.buf, 0, -1, false, vim.fn.readfile(path))
+            vim.bo[ev.buf].filetype = 'json'
+        end
+        vim.fn.delete(tmp)
+    end,
+})
+
+vim.api.nvim_create_autocmd('BufWriteCmd', {
+    group = notebook,
+    pattern = '*.ipynb',
+    callback = function(ev)
+        local path = vim.api.nvim_buf_get_name(ev.buf)
+        local tmp = vim.fn.tempname() .. '.py'
+        vim.fn.writefile(vim.api.nvim_buf_get_lines(ev.buf, 0, -1, true), tmp)
+        local args = { '--to', 'ipynb' }
+        -- 覆盖已有 notebook 时加 --update，保留 cell 的输出和 metadata。
+        if vim.fn.filereadable(path) == 1 then table.insert(args, '--update') end
+        vim.list_extend(args, { '--output', path, tmp })
+        local ok, err = jupytext(args)
+        vim.fn.delete(tmp)
+        if not ok then
+            vim.notify('jupytext 写回失败：' .. tostring(err), vim.log.levels.ERROR)
+            return
+        end
+        vim.bo[ev.buf].modified = false
+        vim.api.nvim_exec_autocmds('BufWritePost', { buffer = ev.buf })
+    end,
+})
 
 -- 列表里回车自动续写下一项（`1.` → `2.`、`-` → `-`）。
 vim.api.nvim_create_autocmd('FileType', {
@@ -172,7 +236,8 @@ if vim.fn.has('mac') == 1 then
         or { type = 'executable', command = 'xcrun', args = { 'lldb-dap' } }
 else
     dap.adapters.native = {
-        type = 'executable', command = 'gdb',
+        type = 'executable',
+        command = 'gdb',
         args = { '--interpreter=dap', '--eval-command', 'set print pretty on' },
     }
 end

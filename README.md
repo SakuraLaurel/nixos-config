@@ -39,8 +39,6 @@ NixOS、Home Manager 和 plasma-manager 的版本记录在 `flake.lock`。需要
 
 ## 桌面
 
-只接市电：不自动挂起，不关屏，不调暗，也不自动锁屏。短按电源键关机。
-
 **截图**。Spectacle 自动保存到其默认截图目录。实际路径见 Spectacle 的图像保存设置。
 
 | 截图范围 | 快捷键 | US 键盘按法 |

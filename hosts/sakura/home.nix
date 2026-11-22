@@ -95,6 +95,11 @@ in
     '';
   };
 
+  xdg.userDirs = {
+    enable = true;
+    createDirectories = true;
+  };
+
   # 让 init.lua 直接在仓库中编辑；插件锁文件由本地生成，不跟踪。
   xdg.configFile.nvim.source = config.lib.file.mkOutOfStoreSymlink nvimConfig;
 
@@ -182,7 +187,7 @@ in
   programs.bash = {
     enable = true;
     shellAliases = {
-      gc = "sudo systemctl start nix-gc.service";
+      gc = "sudo systemctl start nix-gc.service && systemctl status nix-gc.service --no-pager -n 5";
       rebuild = ''sudo nixos-rebuild switch --flake "${repoPath}#sakura"'';
       mihomo-update = "sudo systemctl start mihomo-subscription.service";
       boot-clean = "sudo ${cleanBootEntries}/bin/clean-boot-entries";

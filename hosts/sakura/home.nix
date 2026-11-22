@@ -80,6 +80,11 @@ in
   programs.plasma = {
     enable = true;
 
+    # 丢弃 plasma-manager 之外的 KDE 设置；面板几何/更新标记保留，
+    # 否则会重跑 Plasma 的迁移脚本并重置面板厚度、浮动状态。
+    overrideConfig = true;
+    resetFilesExclude = [ "plasmashellrc" ];
+
     fonts = {
       general = {
         family = "Noto Sans";

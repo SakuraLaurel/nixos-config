@@ -9,12 +9,11 @@
 | `hosts/laurel/default.nix` | 引导、NetworkManager、SSH、Intel 核显、磁盘维护、系统包 |
 | `hosts/laurel/hardware-configuration.nix` | 磁盘 UUID、文件系统、内核模块 |
 | `hosts/laurel/users.nix` | 账户、密码哈希、sudo |
-| `hosts/laurel/home.nix` | 用户包、Plasma、Konsole、Bash 别名 |
-| `modules/nixos/desktop.nix` | ly 登录管理器、输入法、字体、音频、VLC、Brave |
+| `hosts/laurel/home.nix` | 用户包、Plasma、Ghostty、Bash 别名 |
+| `modules/nixos/desktop.nix` | ly 登录管理器、输入法、字体、音频、Haruna、Brave |
 | `modules/nixos/mihomo.nix` | mihomo 服务与手动订阅更新 unit |
 | `modules/home/proxy-client.nix` | Bash 与 KDE 的代理开关 |
 | `modules/home/nvim/init.lua` | Neovim 0.12+ 配置 |
-| `modules/home/konsole/` | Konsole 配色 |
 
 ## 日常使用
 
@@ -23,7 +22,8 @@ cd ~/nixos-config
 sudo nixos-rebuild switch --flake .#laurel
 ```
 
-NixOS、Home Manager 和 plasma-manager 的版本记录在 `flake.lock`。需要升级时在仓库里运行 `nix flake update`，再重建。格式化用 `nix fmt`（`nixfmt-tree`）。
+- 需要升级时在仓库里运行 `nix flake update`，再重建
+- 格式化用 `nix fmt`（`nixfmt-tree`）
 
 | 在 Bash 中输入 | 效果 |
 | --- | --- |
@@ -35,17 +35,19 @@ NixOS、Home Manager 和 plasma-manager 的版本记录在 `flake.lock`。需要
 | `proxy-on` / `proxy-off` | 同时切换当前终端和 KDE 桌面的代理，新开的 Bash 跟随该选择 |
 | `htop` | 查看 CPU、内存和进程 |
 
-启动菜单平时保留 10 条（`boot.loader.systemd-boot.configurationLimit`），由 NixOS 在每次 rebuild 时自动裁剪。需要回收时用 `boot-clean` 清到只剩当前一个——它删的是 generation，菜单和 `loader.conf` 都由 NixOS 重新生成，不手改 `/boot/loader/entries`。
+- 启动菜单平时保留 10 条（`boot.loader.systemd-boot.configurationLimit`）
+- 需要回收时用 `boot-clean` 清到只剩当前一个
 
 ## 桌面
 
-Plasma 设置由 `plasma-manager` 声明，并开启了 `overrideConfig`：每次 activation 会删除或重置未声明的 KDE 配置（Dolphin、KRunner/Klipper、窗口规则、键盘布局、全局快捷键等）。面板/小部件布局（`appletsrc`）、代理开关（`kioslaverc`）和截图保存路径（`spectaclerc`）属于运行时状态，不在重置范围；`plasmashellrc` 也保留，避免重跑 Plasma 迁移脚本。
+Plasma 设置由 `plasma-manager` 声明，并开启了 `overrideConfig`
 
-壁纸由 `workspace.wallpaper` 固定为 `~/Pictures/bliss.jpg`，并通过 `runAlways` 的 Plasma 启动脚本在每次登录时重设。
+- 每次 activation 会删除或重置未声明的 KDE 配置（Dolphin、KRunner/Klipper、窗口规则、键盘布局、全局快捷键等）
+- 面板/小部件布局（`appletsrc`）、代理开关（`kioslaverc`）和截图保存路径（`spectaclerc`）属于运行时状态，不在重置范围
+- `plasmashellrc` 也保留，避免重跑 Plasma 迁移脚本
+- 壁纸由 `workspace.wallpaper` 固定为 `~/Pictures/bliss.jpg`
 
-Dolphin 侧栏「设备」的条目名取文件系统标签，与 fstab 里的挂载点无关。`maia` 和 `ganette` 的标签已与挂载点一致；以后换盘时按「重装这台机器 · 数据盘命名」里的命令同步。
-
-**截图**。Spectacle 自动保存到其默认截图目录。实际路径见 Spectacle 的图像保存设置。
+Spectacle 自动保存到其默认截图目录。实际路径见 Spectacle 的图像保存设置
 
 | 截图范围 | 快捷键 | US 键盘按法 |
 | --- | --- | --- |
@@ -53,13 +55,18 @@ Dolphin 侧栏「设备」的条目名取文件系统标签，与 fstab 里的�
 | 当前窗口 | `Alt+#` | `Alt+Shift+3` |
 | 矩形选区 | `Alt+$` | `Alt+Shift+4` |
 
-**Intel 视频解码**。这台 i5-12400 使用 iHD（VA-API）和 oneVPL（Quick Sync）。`vainfo` 列出驱动支持的格式，带 `VAEntrypointVLD` 的条目代表解码。播放本地或网页视频时，用 `sudo intel_gpu_top` 看 Video 引擎负载。Brave 中可用 `brave://media-internals` 检查当前视频选择的解码器。`vulkaninfo --summary` 可查看 Vulkan 枚举的 GPU 及其顺序。
+**Intel 视频解码**。这台 i5-12400 使用 iHD（VA-API）和 oneVPL（Quick Sync）
+
+- 播放本地或网页视频时，用 `sudo intel_gpu_top` 看 Video 引擎负载
+- Brave 中可用 `brave://media-internals` 检查当前视频选择的解码器
+- `vulkaninfo --summary` 可查看 Vulkan 枚举的 GPU 及其顺序
 
 ## Neovim
 
-使用原生 Lua 和 `vim.pack`（Neovim 0.12+）。`~/.config/nvim` 是指向 `modules/home/nvim` 的链接，改完 Lua 重新打开编辑器即可生效。
+使用原生 Lua 和 `vim.pack`（Neovim 0.12+，当前 0.12.6）
 
-插件锁文件 `nvim-pack-lock.json` 由 `vim.pack` 在本地生成，已加入 `.gitignore`，不提交到仓库；插件版本随上游浮动。换机器时不需要迁移锁文件。
+- `~/.config/nvim` 是指向 `modules/home/nvim` 的链接，改完 Lua 重新打开编辑器即可生效
+- 只改 `init.lua` 不需要重建系统，改 `home.nix` 里的包才需要 `rebuild`
 
 ## 代理
 
@@ -70,22 +77,23 @@ install -d -m 700 ~/.config/mihomo
 chmod 600 ~/.config/mihomo/subscription-url
 ```
 
-订阅**只在手动执行 `mihomo-update` 时更新**，开机和定时器都不会拉取；已存在的配置会在开机时直接启动 mihomo，保持快速启动。首次安装或更换订阅后执行：
+- 订阅**只在手动执行 `mihomo-update` 时更新**，开机和定时器都不会拉取
+- 已存在的配置会在开机时直接启动 mihomo，保持快速启动。首次安装或更换订阅后执行
 
 ```bash
 mihomo-update
 systemctl status mihomo
 ```
 
-`mihomo-update` 会先检查订阅文件；缺失或为空时直接报错，不会让 systemd 静默跳过。执行后无论成败都会打印本次 unit 日志。
+mihomo 的端口、模式、规则以订阅为准，本仓库不再覆盖 `mixed-port`/`port`
 
-mihomo 的端口、模式、规则以订阅为准，本仓库不再覆盖 `mixed-port`/`port`。Bash、跟随系统代理的 Brave 和 KDE 应用共用 `127.0.0.1:7890`，本机回环地址直连；如果订阅端口不是 7890，需要同步修改 `modules/home/proxy-client.nix`。两个开关只改变客户端设置，mihomo 继续按原计划运行。其他已打开的终端保留各自的环境，可以在里面再次运行同一开关。
+- Bash、跟随系统代理的 Brave 和 KDE 应用共用 `127.0.0.1:7890`，本机回环地址直连
+- 如果订阅端口不是 7890，需要同步修改 `modules/home/proxy-client.nix`
+- 两个开关只改变客户端设置，mihomo 继续按原计划运行
 
-## 网络与密码
+## 密码
 
-网络由 NetworkManager 管理，有线/WiFi 用 `nmcli` 或 Plasma 的网络设置。WiFi 连接配置保存在 `/etc/NetworkManager/system-connections`，不在仓库里；如果需要固定 IP，在 NetworkManager 里为对应连接设置，不再写死 `systemd.network`。
-
-`/etc/nixos/sakura-password-hash` 是 root 和 sakura 共用的密码哈希，权限必须是 `root:root 0600`；`hosts/laurel/users.nix` 里的 tmpfiles 规则会在每次启动时校正权限。修改密码：
+`/etc/nixos/sakura-password-hash` 是 root 和 sakura 共用的密码哈希。修改密码：
 
 ```bash
 sudo sh -c 'umask 077; mkpasswd > /etc/nixos/sakura-password-hash'
@@ -100,9 +108,9 @@ sudo nixos-rebuild switch --flake ~/nixos-config#laurel
 
 ### 数据盘命名
 
-`maia` 是单盘 Btrfs（`nvme0n1`，2T），`ganette` 是两块 256G SSD（`sda` + `sdb`）组成的多设备 Btrfs，都按 UUID 挂载。Dolphin 侧栏「设备」显示的是**文件系统标签**而不是挂载点，所以标签要和挂载点一致，否则会看到旧名字（`sdb` 作为同一文件系统的成员也会被 udisks 单独列出）。
-
-格式化时直接带上正确名字；这两条会清空盘上数据，只在准备重装时执行：
+- `maia` 是单盘 Btrfs（`nvme0n1`，2T）
+- `ganette` 是两块 256G SSD（`sda` + `sdb`）组成的多设备 Btrfs
+- 格式化时直接带上正确名字；这两条会清空盘上数据，只在准备重装时执行：
 
 ```bash
 sudo mkfs.btrfs -L maia /dev/nvme0n1

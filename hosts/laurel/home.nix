@@ -36,7 +36,6 @@ in
       biome
       tombi
       rumdl
-      python3Packages.jupytext
       fzf
       fd
       ripgrep
@@ -104,6 +103,12 @@ in
       captureRectangularRegion = "Alt+$";
     };
 
+    hotkeys.commands.ghostty = {
+      name = "Ghostty";
+      key = "Ctrl+Alt+T";
+      command = "ghostty";
+    };
+
     # 台式机只接市电：不挂起、不关屏、不调暗，也不自动锁屏。
     powerdevil.AC = {
       autoSuspend.action = "nothing";
@@ -127,6 +132,11 @@ in
         Translations.LANGUAGE = "zh_CN";
       };
 
+      "kdeglobals".General = {
+        TerminalApplication = "ghostty";
+        TerminalService = "com.mitchellh.ghostty.desktop";
+      };
+
       "kwinrc" = {
         Wayland.InputMethod = "/run/current-system/sw/share/applications/fcitx5-wayland-launcher.desktop";
         "Effect-overview".BorderActivate = 9;
@@ -138,17 +148,9 @@ in
     };
   };
 
-  programs.konsole = {
+  programs.ghostty = {
     enable = true;
-    defaultProfile = "Sakura";
-    profiles.Sakura = {
-      font = {
-        name = "JetBrainsMono Nerd Font";
-        size = 14;
-      };
-      colorScheme = "RosePineDawn";
-    };
-    customColorSchemes.RosePineDawn = ../../modules/home/konsole/rose-pine-dawn.colorscheme;
+    settings.theme = "Rose Pine Dawn";
   };
 
   programs.bash = {
@@ -173,6 +175,9 @@ in
         systemctl status mihomo-subscription.service --no-pager -n 5
         return $rc
       }
+
+      # NixOS 的 /etc/bashrc 给 PS1 加了前导换行；保留同样的提示符样式，去掉空行。
+      PS1='\[\033[1;32m\][\[\e]0;\u@\h: \w\a\]\u@\h:\w]\$\[\033[0m\] '
     '';
   };
 }

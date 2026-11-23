@@ -78,9 +78,7 @@
 
   # 没有开机即需联网的服务；关掉 wait-online 加快启动，mihomo 启动不依赖它。
   systemd.services.NetworkManager-wait-online.enable = false;
-
   hardware.usb-modeswitch.enable = true;
-
   services.btrfs.autoScrub.enable = true;
   services.fstrim.enable = true;
 

@@ -63,6 +63,7 @@
     elisa
     kate
     khelpcenter
+    konsole
     krdp
     ktexteditor
     okular
@@ -76,18 +77,24 @@
   # Plasma 模块默认会拉 KDE PIM 和 Orca 读屏，这里关掉，保持系统精简。
   programs.kde-pim.enable = false;
   services.orca.enable = false;
-  environment.systemPackages = [ pkgs.vlc ];
+  environment.systemPackages = [ pkgs.haruna ];
   xdg.mime.defaultApplications = {
     "inode/directory" = "org.kde.dolphin.desktop";
-    "audio/mpeg" = "vlc.desktop";
-    "audio/mp4" = "vlc.desktop";
-    "audio/flac" = "vlc.desktop";
-    "audio/ogg" = "vlc.desktop";
-    "audio/x-opus+ogg" = "vlc.desktop";
-    "audio/vnd.wave" = "vlc.desktop";
-    # .mkv 的规范 MIME 是 video/matroska；旧别名一并映射，兼容不同应用。
-    "video/matroska" = "vlc.desktop";
-    "video/x-matroska" = "vlc.desktop";
+    # 音频
+    "audio/mpeg" = "org.kde.haruna.desktop";
+    "audio/mp4" = "org.kde.haruna.desktop";
+    "audio/flac" = "org.kde.haruna.desktop";
+    "audio/ogg" = "org.kde.haruna.desktop";
+    "audio/x-opus+ogg" = "org.kde.haruna.desktop";
+    "audio/vnd.wave" = "org.kde.haruna.desktop";
+    # 视频；.mkv 的规范 MIME 是 video/matroska，旧别名一并映射。
+    "video/matroska" = "org.kde.haruna.desktop";
+    "video/x-matroska" = "org.kde.haruna.desktop";
+    "video/mp4" = "org.kde.haruna.desktop";
+    "video/webm" = "org.kde.haruna.desktop";
+    "video/ogg" = "org.kde.haruna.desktop";
+    "video/quicktime" = "org.kde.haruna.desktop";
+    "video/x-msvideo" = "org.kde.haruna.desktop";
   };
 
   programs.brave = {

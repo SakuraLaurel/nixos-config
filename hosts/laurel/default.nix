@@ -115,5 +115,21 @@
     vulkan-tools
   ];
 
+  # 路由器 192.168.3.1 的 DNS 会间歇性 2-5 秒才返回，主线程解析被卡住
+  # （dsh tui 切换会话时尤其明显）。交给 systemd-resolved：固定公共 DNS、
+  # 全局路由（Domains=~.，忽略 DHCP 下发的 DNS）并开启缓存；路由器只作兜底。
+  services.resolved = {
+    enable = true;
+    settings.Resolve = {
+      DNS = [ "223.5.5.5" "119.29.29.29" ];
+      FallbackDNS = [ "192.168.3.1" ];
+      Domains = [ "~." ];
+    };
+  };
+  networking.networkmanager.dns = "systemd-resolved";
+
+  # nsncd 在 hosts 查询上会挂 2 秒才回落，换回 glibc 的 nscd。
+  services.nscd.enableNsncd = false;
+
   system.stateVersion = "26.11";
 }

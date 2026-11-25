@@ -64,8 +64,8 @@
     };
   };
 
-  # 实测 nsncd 的 hosts 查询会挂 2 秒再回落；换回 glibc nscd 规避。
-  services.nscd.enableNsncd = false;
+  # 试验 nsncd（26.11 默认）。此前实测 hosts 查询会挂 2 秒；若复现，就把
+  # services.nscd.enableNsncd = false; 加回来。
 
   # 数据盘：2T 单盘挂 maia，两块 256G 合成的 btrfs 挂 ganette。
   fileSystems."/home/sakura/maia" = {

@@ -50,7 +50,7 @@
     notoPackage = pkgs.noto-fonts-lgc-plus;
   };
   services.displayManager = {
-    ly.enable = true;
+    plasma-login-manager.enable = true;
     autoLogin = {
       enable = true;
       user = "sakura";

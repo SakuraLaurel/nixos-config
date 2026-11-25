@@ -82,7 +82,7 @@ in
     overrideConfig = true;
     resetFilesExclude = [ "plasmashellrc" ];
 
-    workspace.wallpaper = "/home/sakura/Pictures/bliss.jpg";
+    workspace.wallpaper = "${config.home.homeDirectory}/Pictures/bliss.jpg";
     startup.desktopScript."wallpaper_picture".runAlways = true;
 
     fonts = {
@@ -157,8 +157,8 @@ in
     enable = true;
     shellAliases = {
       gc = "sudo systemctl start nix-gc.service && systemctl status nix-gc.service --no-pager -n 5";
-      rebuild = ''sudo nixos-rebuild switch --flake "${repoPath}#laurel"'';
-      update = ''cd "${repoPath}" && nix flake update && sudo nixos-rebuild switch --flake "${repoPath}#laurel"'';
+      rebuild = ''nixos-rebuild switch --flake "${repoPath}#laurel" --sudo'';
+      update = ''cd "${repoPath}" && nix flake update && nixos-rebuild switch --flake "${repoPath}#laurel" --sudo'';
       boot-clean = "sudo nix-env -p /nix/var/nix/profiles/system --delete-generations old && sudo /run/current-system/bin/switch-to-configuration boot && sudo nix-collect-garbage -d";
     };
 

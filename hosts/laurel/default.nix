@@ -19,7 +19,6 @@
         "nix-command"
         "flakes"
       ];
-      auto-optimise-store = true;
       substituters = [
         "https://mirrors.ustc.edu.cn/nix-channels/store?priority=10"
         "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store?priority=20"
@@ -31,6 +30,8 @@
       dates = "weekly";
       options = "--delete-older-than 14d";
     };
+    # 定时做 hardlink 优化，替代每次构建都跑的 auto-optimise-store。
+    optimise.automatic = true;
   };
 
   boot = {

@@ -31,16 +31,17 @@
   };
 
   fonts = {
-    enableDefaultPackages = false;
     packages = with pkgs; [
       nerd-fonts.jetbrains-mono
       noto-fonts-cjk-sans-static
       noto-fonts-color-emoji
     ];
-    fontconfig.aliases = {
-      "sans-serif".prefer = [ "Noto Sans CJK SC" ];
-      monospace.prefer = [ "Noto Sans Mono CJK SC" ];
-    };
+    # plasma6 模块已把 monospace 默认设成 Hack/Noto Sans Mono，aliases 只会往
+    # prefer 末尾追加；要真正改默认就得用 defaultFonts（自定义项排在最前）。
+    fontconfig.defaultFonts.monospace = [
+      "JetBrainsMono Nerd Font"
+      "Noto Sans Mono CJK SC"
+    ];
   };
 
   services.desktopManager.plasma6 = {

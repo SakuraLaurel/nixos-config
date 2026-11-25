@@ -15,6 +15,7 @@ let
     runtimeInputs = [
       pkgs.coreutils
       pkgs.curl
+      pkgs.gnugrep
       pkgs.systemd
     ];
     text = ''
@@ -28,6 +29,12 @@ let
         --retry 3 --retry-max-time 75 --connect-timeout 10 --max-time 30 \
         --user-agent mihomo --output "$tmp" \
         --variable "url@$CREDENTIALS_DIRECTORY/url" --expand-url '{{url:trim}}'
+
+      # 200 的 HTML 错误页能骗过 --fail，替换前先确认内容像 mihomo 配置。
+      grep -qE '^[[:space:]]*(proxies|proxy-providers|mixed-port|port):' "$tmp" || {
+        echo "订阅内容不像 mihomo 配置，保留旧文件" >&2
+        exit 1
+      }
 
       mv -fT "$tmp" "$target"
       systemctl restart --no-block mihomo.service

@@ -65,8 +65,8 @@
     };
   };
 
-  # 试验 nsncd（26.11 默认）。此前实测 hosts 查询会挂 2 秒；若复现，就把
-  # services.nscd.enableNsncd = false; 加回来。
+  # nsncd 保持 26.11 默认。实测 nscd socket 往返 <1ms；单标签名卡 4 秒是
+  # systemd-resolved 的 LLMNR 超时（--protocol=dns 只要 1ms），与 nsncd 无关。
 
   # 数据盘：2T 单盘挂 maia，两块 256G 合成的 btrfs 挂 ganette。
   fileSystems."/home/sakura/maia" = {

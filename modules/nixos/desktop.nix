@@ -32,15 +32,12 @@
 
   fonts = {
     # graphical-desktop 模块会 mkDefault true 打开整套默认字体，这里显式关掉，
-    # 只留下面列的三套 + plasma6 自己加的 noto-fonts-lgc-plus/hack-font。
     enableDefaultPackages = false;
     packages = with pkgs; [
       nerd-fonts.jetbrains-mono
       noto-fonts-cjk-sans-static
       noto-fonts-color-emoji
     ];
-    # plasma6 模块已把 sansSerif 设成 Noto Sans、monospace 设成 Hack；
-    # aliases 只会往 prefer 末尾追加，要真正改默认得用 defaultFonts（自定义项排最前）。
     # 65-nonlatin.conf 里中文的 CJK 回退只列了 Noto Sans CJK KR，不把 SC 加进来，
     # 中文就会落到韩文字形（直/骨/门 变样），所以这里显式 prefer SC。
     fontconfig.defaultFonts = {

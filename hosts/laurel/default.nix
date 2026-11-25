@@ -19,8 +19,6 @@
         "nix-command"
         "flakes"
       ];
-      # 只留实测可用的两家（SJTU 已下线，NJU/JLU/HUST/阿里云都缺 nix-channels/store 路径）；
-      # cache.nixos.org 由 NixOS 模块自动追加，不用手写。
       substituters = [
         "https://mirrors.ustc.edu.cn/nix-channels/store?priority=10"
         "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store?priority=20"
@@ -53,7 +51,7 @@
     networkmanager.enable = true;
   };
 
-  # 注：Wi-Fi 连接若未勾选“忽略自动 DNS”，DHCP 下发的 DNS 会被并行查询。
+  # 注：Wi-Fi 连接需勾选“忽略自动 DNS”，否则DHCP 下发的 DNS 会被并行查询。
   services.resolved = {
     enable = true;
     settings.Resolve = {
@@ -64,9 +62,6 @@
       Domains = [ "~." ];
     };
   };
-
-  # nsncd 保持 26.11 默认。实测 nscd socket 往返 <1ms；单标签名卡 4 秒是
-  # systemd-resolved 的 LLMNR 超时（--protocol=dns 只要 1ms），与 nsncd 无关。
 
   # 数据盘：2T 单盘挂 maia，两块 256G 合成的 btrfs 挂 ganette。
   fileSystems."/home/sakura/maia" = {

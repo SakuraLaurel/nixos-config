@@ -15,7 +15,6 @@ in
     ];
     hashedPasswordFile = passwordFile;
   };
-  security.sudo.wheelNeedsPassword = true;
 
   # 哈希文件只给 root 读，避免本机用户读取或改写。
   systemd.tmpfiles.rules = [

@@ -38,7 +38,6 @@ in
   services.mihomo = {
     enable = true;
     inherit configFile;
-    tunMode = false;
   };
 
   # 首次启动时还没有配置文件，等服务下载完成后再启动，避免开机报错。

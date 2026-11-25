@@ -24,7 +24,6 @@
         "https://mirrors.ustc.edu.cn/nix-channels/store?priority=10"
         "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store?priority=20"
         "https://mirror.sjtu.edu.cn/nix-channels/store?priority=30"
-        "https://cache.nixos.org/?priority=40"
       ];
     };
     gc = {
@@ -50,8 +49,22 @@
   networking = {
     hostName = "laurel";
     networkmanager.enable = true;
-    firewall.enable = true;
   };
+
+  # 注：Wi-Fi 连接若未勾选“忽略自动 DNS”，DHCP 下发的 DNS 会被并行查询。
+  services.resolved = {
+    enable = true;
+    settings.Resolve = {
+      DNS = [
+        "223.5.5.5"
+        "119.29.29.29"
+      ];
+      Domains = [ "~." ];
+    };
+  };
+
+  # 实测 nsncd 的 hosts 查询会挂 2 秒再回落；换回 glibc nscd 规避。
+  services.nscd.enableNsncd = false;
 
   # 数据盘：2T 单盘挂 maia，两块 256G 合成的 btrfs 挂 ganette。
   fileSystems."/home/sakura/maia" = {
@@ -80,14 +93,10 @@
   systemd.services.NetworkManager-wait-online.enable = false;
   hardware.usb-modeswitch.enable = true;
   services.btrfs.autoScrub.enable = true;
-  services.fstrim.enable = true;
 
   services.openssh = {
     enable = true;
-    settings = {
-      PermitRootLogin = "no";
-      PasswordAuthentication = true;
-    };
+    settings.PermitRootLogin = "no";
   };
 
   hardware.graphics = {
@@ -101,35 +110,19 @@
   time.timeZone = "Asia/Shanghai";
   i18n.defaultLocale = "zh_CN.UTF-8";
 
+  # 统一安装常见终端的 terminfo（含 Ghostty 的 xterm-ghostty），省得逐个加包。
+  environment.enableAllTerminfo = true;
   environment.systemPackages = with pkgs; [
     git
     neovim
     curl
     unzip
-    # Ghostty 设置 TERM=xterm-ghostty，需要对应 terminfo 才能用 clear 等。
-    ghostty.terminfo
     usb-modeswitch
     htop
     libva-utils
     intel-gpu-tools
     vulkan-tools
   ];
-
-  # 路由器 192.168.3.1 的 DNS 会间歇性 2-5 秒才返回，主线程解析被卡住
-  # （dsh tui 切换会话时尤其明显）。交给 systemd-resolved：固定公共 DNS、
-  # 全局路由（Domains=~.，忽略 DHCP 下发的 DNS）并开启缓存；路由器只作兜底。
-  services.resolved = {
-    enable = true;
-    settings.Resolve = {
-      DNS = [ "223.5.5.5" "119.29.29.29" ];
-      FallbackDNS = [ "192.168.3.1" ];
-      Domains = [ "~." ];
-    };
-  };
-  networking.networkmanager.dns = "systemd-resolved";
-
-  # nsncd 在 hosts 查询上会挂 2 秒才回落，换回 glibc 的 nscd。
-  services.nscd.enableNsncd = false;
 
   system.stateVersion = "26.11";
 }

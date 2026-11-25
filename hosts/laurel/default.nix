@@ -19,10 +19,11 @@
         "nix-command"
         "flakes"
       ];
+      # 只留实测可用的两家（SJTU 已下线，NJU/JLU/HUST/阿里云都缺 nix-channels/store 路径）；
+      # cache.nixos.org 由 NixOS 模块自动追加，不用手写。
       substituters = [
         "https://mirrors.ustc.edu.cn/nix-channels/store?priority=10"
         "https://mirrors.tuna.tsinghua.edu.cn/nix-channels/store?priority=20"
-        "https://mirror.sjtu.edu.cn/nix-channels/store?priority=30"
       ];
     };
     gc = {

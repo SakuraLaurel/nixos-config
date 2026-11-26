@@ -10,7 +10,7 @@
 | `hosts/laurel/hardware-configuration.nix` | 磁盘 UUID、文件系统、内核模块 |
 | `hosts/laurel/users.nix` | 账户、密码哈希、sudo |
 | `hosts/laurel/home.nix` | 用户包、Plasma、Ghostty、Bash 别名 |
-| `modules/nixos/desktop.nix` | ly 登录管理器、输入法、字体、音频、Haruna、Brave |
+| `modules/nixos/desktop.nix` | Plasma Login Manager、输入法、字体、音频、Haruna、Brave |
 | `modules/nixos/mihomo.nix` | mihomo 服务与手动订阅更新 unit |
 | `modules/home/proxy-client.nix` | Bash 与 KDE 的代理开关 |
 | `modules/home/nvim/init.lua` | Neovim 0.12+ 配置 |
@@ -22,16 +22,16 @@ cd ~/nixos-config
 sudo nixos-rebuild switch --flake .#laurel
 ```
 
-- 需要升级时在仓库里运行 `nix flake update`，再重建
+- 需要升级时执行 `update`（`nix flake update` + 重建，任意目录都行）
 - 格式化用 `nix fmt`（`nixfmt-tree`）
 
 | 在 Bash 中输入 | 效果 |
 | --- | --- |
 | `rebuild` | 从任意目录重建并切换到 laurel 配置（用当前 `flake.lock`，不更新） |
 | `update` | `nix flake update` 后再 rebuild，即真正的滚动更新 |
-| `gc` | 立即执行每周使用的垃圾回收任务，沿用 14 天保留策略 |
-| `mihomo-update` | 手动拉取订阅并重启 mihomo；开机不会自动拉取 |
-| `boot-clean` | 清理到只剩当前 generation：删历史 → 重建启动菜单 → 回收 store |
+| `gc` | 立即执行每周使用的垃圾回收任务，沿用 14 天保留策略；结束后打印最后几行日志 |
+| `mihomo-update` | 手动拉取订阅，先过 mihomo 自己的配置校验，再替换并重启；开机不会自动拉取 |
+| `boot-clean` | 清理到只剩当前 generation：删系统 profile 的历史代 → 重建启动菜单 → 回收 store（不碰其他 profile） |
 | `proxy-on` / `proxy-off` | 同时切换当前终端和 KDE 桌面的代理，新开的 Bash 跟随该选择 |
 | `htop` | 查看 CPU、内存和进程 |
 
@@ -44,6 +44,7 @@ Plasma 设置由 `plasma-manager` 声明，并开启了 `overrideConfig`
 
 - 每次 activation 会删除或重置未声明的 KDE 配置（Dolphin、KRunner/Klipper、窗口规则、键盘布局、全局快捷键等）
 - 面板/小部件布局（`appletsrc`）、代理开关（`kioslaverc`）和截图保存路径（`spectaclerc`）属于运行时状态，不在重置范围
+- 时钟的「显示秒」也在 GUI 里设置：它存在 `appletsrc` 里、绑定当前面板的 applet 编号，所以 Nix 不再写它
 - `plasmashellrc` 也保留，避免重跑 Plasma 迁移脚本
 - 壁纸由 `workspace.wallpaper` 固定为 `~/Pictures/bliss.jpg`
 
@@ -66,19 +67,19 @@ Spectacle 自动保存到其默认截图目录。实际路径见 Spectacle 的�
 使用原生 Lua 和 `vim.pack`（Neovim 0.12+，当前 0.12.6）
 
 - `~/.config/nvim` 是指向 `modules/home/nvim` 的链接，改完 Lua 重新打开编辑器即可生效
+- `nvim-pack-lock.json` 已入库，新装按锁定的提交拉插件；升级插件用 `:PackUpdate`，锁文件的变化记得一起提交
 - 只改 `init.lua` 不需要重建系统，改 `home.nix` 里的包才需要 `rebuild`
 
 ## 代理
 
-订阅文件 `~/.config/mihomo/subscription-url` 只放一行 HTTPS 地址，权限设为 `600`：
+订阅文件 `~/.config/mihomo/subscription-url` 只放一行 HTTPS 地址，权限设为 `600`。目录由 `systemd.tmpfiles` 按 0700 建好，只差放文件：
 
 ```bash
-install -d -m 700 ~/.config/mihomo
 chmod 600 ~/.config/mihomo/subscription-url
 ```
 
 - 订阅**只在手动执行 `mihomo-update` 时更新**，开机和定时器都不会拉取
-- 已存在的配置会在开机时直接启动 mihomo，保持快速启动。首次安装或更换订阅后执行
+- 已存在的配置会在开机时直接启动 mihomo，保持快速启动。首次安装或更换订阅后执行（新配置会先过 `mihomo -t`，校验不过就保留旧文件）
 
 ```bash
 mihomo-update
@@ -87,6 +88,7 @@ systemctl status mihomo
 
 mihomo 的端口、模式、规则以订阅为准，本仓库不再覆盖 `mixed-port`/`port`
 
+- 客户端假设订阅在 `127.0.0.1:7890` 提供**混合代理**（`mixed-port: 7890`）；只写 `port:` 时同一个端口只收 HTTP，`all_proxy` 里的 SOCKS 会连不上
 - Bash、跟随系统代理的 Brave 和 KDE 应用共用 `127.0.0.1:7890`，本机回环地址直连
 - 如果订阅端口不是 7890，需要同步修改 `modules/home/proxy-client.nix`
 - 两个开关只改变客户端设置，mihomo 继续按原计划运行
@@ -104,7 +106,7 @@ sudo nixos-rebuild switch --flake ~/nixos-config#laurel
 
 ## 重装这台机器
 
-以下步骤复用已有的 Btrfs 子卷和 EFI 系统分区。先用 `lsblk -f` 与 `hosts/laurel/hardware-configuration.nix` 核对 UUID；如果重新分区，UUID 会变，必须同步修改 hardware 文件。
+以下步骤复用已有的 Btrfs 子卷和 EFI 系统分区。先用 `lsblk -f` 和配置核对 UUID：系统盘与 ESP 在 `hosts/laurel/hardware-configuration.nix`，两块数据盘在 `hosts/laurel/default.nix` 的 `dataDisks`。重新分区或格式化会换 UUID，要改的是对应的那一处。数据盘带 `nofail`，UUID 对不上时机器照样进桌面，只是盘没挂上，别当成成功。
 
 ### 数据盘命名
 
@@ -173,5 +175,7 @@ sudo nixos-enter --root /mnt -c 'passwd -S root && passwd -S sakura'
 `passwd -S` 的第二列为 `P` 表示已设置密码。首次登录后确认 sakura 对 `~/nixos-config` 有写权限；如果需要代理，先放好 `~/.config/mihomo/subscription-url`，再执行 `mihomo-update`。
 
 ## 其他本机设置
+
+固件走 LVFS：`sudo fwupdmgr refresh && sudo fwupdmgr update`（`services.fwupd` 已开）。
 
 需要 dsh 的终端界面时，运行 `dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui`，之后用 `dsh tui` 启动，Web 界面用 `dsh web`。

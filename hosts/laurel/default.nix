@@ -1,8 +1,22 @@
 {
+  lib,
   pkgs,
   ...
 }:
 
+let
+  # 两块数据盘挂在家目录下：名字即挂载点名，UUID 只在这里出现一次。
+  dataDisks = {
+    maia = "56e5fcd6-897f-42d9-90a6-9d3bec6edc8a";
+    ganette = "f38c6d5a-3652-48cd-a2a2-6f7a18615959";
+  };
+  dataMountOptions = [
+    "compress=zstd:3"
+    "noatime"
+    "nofail"
+    "x-systemd.device-timeout=10s"
+  ];
+in
 {
   imports = [
     ./hardware-configuration.nix
@@ -64,32 +78,23 @@
   };
 
   # 数据盘：2T 单盘挂 maia，两块 256G 合成的 btrfs 挂 ganette。
-  fileSystems."/home/sakura/maia" = {
-    device = "/dev/disk/by-uuid/56e5fcd6-897f-42d9-90a6-9d3bec6edc8a";
-    fsType = "btrfs";
-    options = [
-      "compress=zstd:3"
-      "noatime"
-      "nofail"
-      "x-systemd.device-timeout=10s"
-    ];
-  };
+  fileSystems = lib.mapAttrs' (
+    name: uuid:
+    lib.nameValuePair "/home/sakura/${name}" {
+      device = "/dev/disk/by-uuid/${uuid}";
+      fsType = "btrfs";
+      options = dataMountOptions;
+    }
+  ) dataDisks;
 
-  fileSystems."/home/sakura/ganette" = {
-    device = "/dev/disk/by-uuid/f38c6d5a-3652-48cd-a2a2-6f7a18615959";
-    fsType = "btrfs";
-    options = [
-      "compress=zstd:3"
-      "noatime"
-      "nofail"
-      "x-systemd.device-timeout=10s"
-    ];
-  };
-
-  # 没有开机即需联网的服务；关掉 wait-online 加快启动，mihomo 启动不依赖它。
+  # 没有开机即需联网的服务，关掉 wait-online 加快启动。mihomo 的 unit 虽然
+  # requires network-online.target，但关掉 wait-online 后这个 target 几乎立刻
+  # 到达，它只保证启动顺序，不会再拖时间。
   systemd.services.NetworkManager-wait-online.enable = false;
   hardware.usb-modeswitch.enable = true;
   services.btrfs.autoScrub.enable = true;
+  # SSD/主板固件走 LVFS：fwupdmgr refresh && fwupdmgr update
+  services.fwupd.enable = true;
 
   services.openssh = {
     enable = true;
@@ -109,10 +114,10 @@
 
   # 统一安装常见终端的 terminfo（含 Ghostty 的 xterm-ghostty），省得逐个加包。
   environment.enableAllTerminfo = true;
+  # 系统包留成 root 也能用的工具；用户自己的东西放 home.packages。
   environment.systemPackages = with pkgs; [
     git
     neovim
-    curl
     unzip
     usb-modeswitch
     htop

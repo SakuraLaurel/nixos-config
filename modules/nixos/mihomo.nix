@@ -15,8 +15,8 @@ let
     runtimeInputs = [
       pkgs.coreutils
       pkgs.curl
-      pkgs.gnugrep
       pkgs.systemd
+      config.services.mihomo.package
     ];
     text = ''
       target="$STATE_DIRECTORY/config.yaml"
@@ -30,14 +30,17 @@ let
         --user-agent mihomo --output "$tmp" \
         --variable "url@$CREDENTIALS_DIRECTORY/url" --expand-url '{{url:trim}}'
 
-      # 200 的 HTML 错误页能骗过 --fail，替换前先确认内容像 mihomo 配置。
-      grep -qE '^[[:space:]]*(proxies|proxy-providers|mixed-port|port):' "$tmp" || {
-        echo "订阅内容不像 mihomo 配置，保留旧文件" >&2
+      # 用 mihomo 自己的解析器验收：HTML 错误页、半截 YAML 都会在这里被拒。
+      # -d 指到本 unit 的 StateDirectory，geo 数据在这缓存，第二次起不再下载。
+      mihomo -t -d "$STATE_DIRECTORY" -f "$tmp" || {
+        echo "mihomo 不接受这份订阅，保留旧配置" >&2
         exit 1
       }
 
       mv -fT "$tmp" "$target"
-      systemctl restart --no-block mihomo.service
+
+      # 阻塞等重启结束：mihomo 真起来了，这个 unit 才算成功。
+      systemctl restart mihomo.service
     '';
   };
 in

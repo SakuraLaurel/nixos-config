@@ -2,9 +2,6 @@
 result
 result-*
 
-# Neovim 插件锁：不跟踪，插件版本随上游浮动
-nvim-pack-lock.json
-
 # 虚拟机/磁盘镜像等构建产物
 *.qcow2
 *.img
@@ -13,7 +10,5 @@ nvim-pack-lock.json
 .direnv/
 *.swp
 
-# 密码哈希与订阅地址不入库
+# 密码哈希不入库（订阅地址在 ~/.config/mihomo，本来就不在仓库里）
 sakura-password-hash
-clash-subscribe
-spec.md

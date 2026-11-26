@@ -8,6 +8,23 @@ let
   repoPath = "${config.home.homeDirectory}/nixos-config";
   nvimConfig = "${repoPath}/modules/home/nvim";
 
+  # 多步维护命令交给 writeShellApplication：由 shellcheck 检查，PATH 也固定下来。
+  # 单行的 rebuild/update 继续用别名，改起来更短。
+  bootClean = pkgs.writeShellApplication {
+    name = "boot-clean";
+    runtimeInputs = with pkgs; [
+      nix
+      coreutils
+      sudo
+    ];
+    text = ''
+      # 只删系统 profile 的历史代；回收 store 时不加 -d，别动其他 profile 的代。
+      sudo nix-env -p /nix/var/nix/profiles/system --delete-generations old
+      sudo /run/current-system/bin/switch-to-configuration boot
+      sudo nix-collect-garbage
+    '';
+  };
+
 in
 {
   imports = [ ../../modules/home/proxy-client.nix ];
@@ -23,7 +40,7 @@ in
       ninja
       pkg-config
       gdb
-      python314
+      python3
       python3Packages.debugpy
 
       # Neovim 的解析器、语言服务和命令行工具
@@ -44,6 +61,7 @@ in
       deepseek-harness
       pnpm
       qq
+      bootClean
     ];
 
     file.".npmrc".text = ''
@@ -56,15 +74,19 @@ in
     createDirectories = true;
   };
 
-  # 让 init.lua 直接在仓库中编辑；插件锁文件由本地生成，不跟踪。
+  # 让 init.lua 直接在仓库中编辑；插件锁文件已入库，新装按锁定的提交拉插件。
   xdg.configFile.nvim.source = config.lib.file.mkOutOfStoreSymlink nvimConfig;
 
   programs.git = {
     enable = true;
-    package = null; # git 由系统提供，这里只管理 sakura 的身份。
-    settings.user = {
-      name = "SakuraLaurel";
-      email = "brynhild@pku.edu.cn";
+    package = null; # git 由系统提供，这里只管理 sakura 的身份和几个默认值。
+    settings = {
+      user = {
+        name = "SakuraLaurel";
+        email = "brynhild@pku.edu.cn";
+      };
+      init.defaultBranch = "main";
+      core.editor = "nvim";
     };
   };
 
@@ -83,6 +105,8 @@ in
     resetFilesExclude = [ "plasmashellrc" ];
 
     workspace.wallpaper = "${config.home.homeDirectory}/Pictures/bliss.jpg";
+    # wallpaper_picture 是 plasma-manager 自己生成的脚本；overrideConfig 打开后
+    # 必须每次登录都跑，否则壁纸会被重置后的配置盖掉。
     startup.desktopScript."wallpaper_picture".runAlways = true;
 
     fonts = {
@@ -139,27 +163,27 @@ in
 
       "kwinrc" = {
         Wayland.InputMethod = "/run/current-system/sw/share/applications/fcitx5-wayland-launcher.desktop";
+        # 数字是 KWin 的 ElectricBorder 枚举值，含义见系统设置 → 桌面特效。
         "Effect-overview".BorderActivate = 9;
-      };
-
-      "plasma-org.kde.plasma.desktop-appletsrc" = {
-        "Containments/2/Applets/19/Configuration/Appearance".showSeconds = 2;
       };
     };
   };
 
   programs.ghostty = {
     enable = true;
-    settings.theme = "Rose Pine Dawn";
+    settings = {
+      theme = "Rose Pine Dawn";
+      # 系统里只有 nerd-fonts 的族名，不写这行会落到 Noto Sans Mono CJK。
+      font-family = "JetBrainsMono Nerd Font";
+    };
   };
 
   programs.bash = {
     enable = true;
     shellAliases = {
-      gc = "sudo systemctl start nix-gc.service && systemctl status nix-gc.service --no-pager -n 5";
+      gc = "sudo systemctl start nix-gc.service && journalctl -u nix-gc.service -n 5 --no-pager";
       rebuild = ''nixos-rebuild switch --flake "${repoPath}#laurel" --sudo'';
-      update = ''cd "${repoPath}" && nix flake update && nixos-rebuild switch --flake "${repoPath}#laurel" --sudo'';
-      boot-clean = "sudo nix-env -p /nix/var/nix/profiles/system --delete-generations old && sudo /run/current-system/bin/switch-to-configuration boot && sudo nix-collect-garbage -d";
+      update = ''nix flake update --flake "${repoPath}" && nixos-rebuild switch --flake "${repoPath}#laurel" --sudo'';
     };
 
     # 缺少订阅地址时明确报错；执行完始终打印日志，避免 systemctl 静默失败。
@@ -172,7 +196,7 @@ in
         fi
         sudo systemctl start mihomo-subscription.service
         local rc=$?
-        systemctl status mihomo-subscription.service --no-pager -n 5
+        journalctl -u mihomo-subscription.service -n 8 --no-pager
         return $rc
       }
 

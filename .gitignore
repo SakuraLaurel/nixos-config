@@ -2,13 +2,5 @@
 result
 result-*
 
-# 虚拟机/磁盘镜像等构建产物
-*.qcow2
-*.img
-
-# 编辑器与系统垃圾
-.direnv/
-*.swp
-
 # 密码哈希不入库（订阅地址在 ~/.config/mihomo，本来就不在仓库里）
 sakura-password-hash

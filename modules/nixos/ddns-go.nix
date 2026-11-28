@@ -35,7 +35,7 @@ in
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
 
-      # 命令取地址模式要用到 ip/awk；即使只用网卡模式，留着也无妨。
+      # 网页里的 IPv6 取址命令在这个 PATH 下执行。
       path = with pkgs; [
         bash
         gawk
@@ -53,7 +53,6 @@ in
         Restart = "on-failure";
         RestartSec = "10s";
 
-        # ddns-go 只需要读写自己的配置、解析域名和访问阿里云 API。
         NoNewPrivileges = true;
         PrivateTmp = true;
         ProtectSystem = "strict";
@@ -63,7 +62,7 @@ in
         ProtectControlGroups = true;
         LockPersonality = true;
         CapabilityBoundingSet = "";
-        # Go 的 net.Interfaces() 和 ip 命令都要走 netlink。
+        # 枚举网卡和运行 ip 都需要 AF_NETLINK。
         RestrictAddressFamilies = [
           "AF_INET"
           "AF_INET6"

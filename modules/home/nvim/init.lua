@@ -1,6 +1,5 @@
 assert(vim.fn.has('nvim-0.12') == 1, 'This configuration requires Neovim 0.12+')
 
--- 外部程序由启动 Neovim 的环境提供，不硬编码 fnm/Homebrew 的安装路径。
 local is_nixos = vim.fn.filereadable('/etc/NIXOS') == 1
 
 vim.g.mapleader = ' '
@@ -41,13 +40,13 @@ local function build_codediff(path)
         local result = vim.system(argv, { cwd = path, text = true }):wait()
         assert(result.code == 0, 'CodeDiff build failed:\n' .. (result.stderr or '') .. (result.stdout or ''))
     end
-    -- 加载器优先使用带版本号的文件；移除旧下载，确保选中本地编译结果。
+    -- 加载器优先选带版本号的旧库，清掉它才会加载本地编译的版本。
     for _, library in ipairs(vim.fn.glob(path .. '/libvscode_diff_*.so', false, true)) do
         assert(vim.uv.fs_unlink(library))
     end
 end
 
--- 在首次从 lockfile 安装、以及更新插件之前注册构建钩子。
+-- 钩子要早于 vim.pack.add 注册，才能处理首次安装。
 vim.api.nvim_create_autocmd('PackChanged', {
     callback = function(ev)
         local data = ev.data
@@ -68,7 +67,7 @@ vim.pack.add({
     { src = gh('rose-pine/neovim'),                name = 'rose-pine' },
     { src = gh('nvim-treesitter/nvim-treesitter'), version = 'main' },
     gh('neovim/nvim-lspconfig'),
-    -- 固定兼容的 v1 API；使用 Lua 匹配器，不下载平台相关的 Rust 库。
+    -- v1 支持下面使用的 Lua 匹配器。
     { src = gh('saghen/blink.cmp'),      version = vim.version.range('1') },
     gh('ibhagwan/fzf-lua'),
     gh('nvim-mini/mini.icons'),
@@ -79,14 +78,14 @@ vim.pack.add({
     gh('MeanderingProgrammer/render-markdown.nvim'),
     gh('gaoDean/autolist.nvim'),
     gh('windwp/nvim-autopairs'),
-    -- 不指定 version 即跟随 master，nvim-dap-view 需要 master 上的 listeners.on_session
+    -- nvim-dap-view 依赖 nvim-dap 主分支的 listeners.on_session。
     cb('mfussenegger/nvim-dap'),
     cb('mfussenegger/nvim-dap-python'),
     { src = gh('igorlfs/nvim-dap-view'), version = vim.version.range('1') },
 })
 vim.cmd.packadd('nvim.undotree')
 
--- 已安装插件迁移到 NixOS 时也构建一次，不能只依赖 PackChanged。
+-- 迁移已有插件时不会触发 PackChanged，需补建本地库。
 if is_nixos then
     for _, plugin in ipairs(vim.pack.get({ 'codediff.nvim' })) do
         local ready = vim.fn.filereadable(plugin.path .. '/CMakeLists.txt') == 1
@@ -103,15 +102,13 @@ for _, plugin in ipairs({
     require(plugin).setup()
 end
 
--- 只保留 markdown 渲染。html/latex/yaml 需要额外的 treesitter parser，
--- latex 还要 latex2text 或 utftex 二进制，这里不用，关掉以免 :checkhealth 报警。
+-- 这三种嵌入格式需要额外解析器，LaTeX 还需要转换工具。
 require('render-markdown').setup({
     html = { enabled = false },
     latex = { enabled = false },
     yaml = { enabled = false },
 })
 
--- 列表里回车自动续写下一项（`1.` → `2.`、`-` → `-`）。
 vim.api.nvim_create_autocmd('FileType', {
     pattern = { 'markdown', 'text', 'tex', 'plaintex', 'norg' },
     callback = function(ev)
@@ -152,7 +149,7 @@ vim.treesitter.language.register('json5', { 'jsonc', 'json5' })
 vim.api.nvim_create_autocmd('FileType', {
     callback = function(ev)
         local lang = vim.treesitter.language.get_lang(ev.match)
-        -- 首次安装是异步的；未安装或无解析器的文件类型保留普通语法高亮。
+        -- 首次安装解析器是异步的，加载成功后才能启动高亮。
         if lang and vim.treesitter.language.add(lang) then vim.treesitter.start(ev.buf, lang) end
     end,
 })
@@ -170,10 +167,8 @@ vim.lsp.enable({ 'ty', 'ruff', 'clangd', 'lua_ls', 'jsonls', 'tombi', 'rumdl' })
 vim.diagnostic.config({ severity_sort = true, virtual_text = true, float = { source = 'if_many' } })
 
 local dap = require('dap')
--- NixOS 使用声明式安装的 adapter；其他系统可继续让 uv 管理 debugpy。
 require('dap-python').setup(vim.fn.executable('debugpy-adapter') == 1 and 'debugpy-adapter' or 'uv')
 if vim.fn.has('mac') == 1 then
-    -- Homebrew 的 lldb-dap 优先，其次使用 Xcode 工具链。
     dap.adapters.native = vim.fn.executable('lldb-dap') == 1
         and { type = 'executable', command = 'lldb-dap' }
         or { type = 'executable', command = 'xcrun', args = { 'lldb-dap' } }

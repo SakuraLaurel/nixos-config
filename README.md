@@ -1,211 +1,82 @@
-# Sakura 的 NixOS 桌面
+# laurel 的 NixOS 桌面
 
-一台主机名为 `laurel` 的 i5-12400 台式机，Plasma 6 + Wayland + Fcitx5。仓库放在 `~/nixos-config`，由 `sakura` 用户维护。网络由 NetworkManager 管理，代理由 mihomo 提供。
+i5-12400 台式机，Plasma 6、Wayland 和 Fcitx5。仓库放在 `~/nixos-config`，系统入口是 `.#laurel`。
 
-## 目录
+## 日常命令
 
-| 路径 | 内容 |
+| 命令 | 用途 |
 | --- | --- |
-| `hosts/laurel/default.nix` | 引导、NetworkManager、SSH、Intel 核显、磁盘维护、系统包 |
-| `hosts/laurel/hardware-configuration.nix` | 磁盘 UUID、文件系统、内核模块 |
-| `hosts/laurel/users.nix` | 账户、密码哈希、sudo |
-| `hosts/laurel/home.nix` | 用户包、Plasma、Ghostty、Bash 别名 |
-| `modules/nixos/desktop.nix` | Plasma Login Manager、输入法、字体、音频、Haruna、Brave |
-| `modules/nixos/mihomo.nix` | mihomo 服务与手动订阅更新 unit |
-| `modules/nixos/ddns-go.nix` | ddns-go 服务，向阿里云 DNS 更新 IPv6 记录 |
-| `modules/home/proxy-client.nix` | Bash 与 KDE 的代理开关 |
-| `modules/home/nvim/init.lua` | Neovim 0.12+ 配置 |
+| `rebuild` | 按当前 `flake.lock` 重建并切换系统，可在任意目录执行 |
+| `update` | 更新 `flake.lock`，随后重建并切换 |
+| `nix fmt` | 在仓库根目录格式化 Nix 文件 |
+| `proxy-on` / `proxy-off` | 切换 KDE 和当前 Bash 的代理，新开的 Bash 跟随 KDE |
+| `mihomo-update` | 手动更新订阅、重启 mihomo，显示最近的更新日志 |
+| `boot-clean` | 删除系统 profile 的全部历史代，只保留当前代，再重写启动菜单并回收空间 |
+| `sudo fwupdmgr refresh && sudo fwupdmgr update` | 检查并安装设备固件更新 |
 
-## 日常使用
+平时由每周 GC 清理 7 天前的旧代，启动菜单最多显示 10 代。需要回滚时别运行 `boot-clean`。
 
-```bash
-cd ~/nixos-config
-sudo nixos-rebuild switch --flake .#laurel
-```
+新建脚本或模块后，先用 `git add` 将文件纳入版本控制，flake 才能在重建时读取它。
 
-- 需要升级时执行 `update`（`nix flake update` + 重建，任意目录都行）
-- 格式化用 `nix fmt`（`nixfmt-tree`）
-- SSH 只接受公钥登录，密码和键盘交互认证已关闭；改 SSH 前先确认 `~/.ssh/authorized_keys` 里有可用公钥
+## 改哪里
 
-| 在 Bash 中输入 | 效果 |
-| --- | --- |
-| `rebuild` | 从任意目录重建并切换到 laurel 配置（用当前 `flake.lock`，不更新） |
-| `update` | `nix flake update` 后再 rebuild，即真正的滚动更新 |
-| `mihomo-update` | 手动拉取订阅，先过 mihomo 自己的配置校验，再替换并重启；开机不会自动拉取 |
-| `boot-clean` | 清理到只剩当前 generation：删系统 profile 的历史代 → 重建启动菜单 → 回收 store（不碰其他 profile） |
-| `proxy-on` / `proxy-off` | 同时切换当前终端和 KDE 桌面的代理，新开的 Bash 跟随该选择 |
-| `htop` | 查看 CPU、内存和进程 |
+- `hosts/laurel/` 管主机。引导、网络和数据盘在 `default.nix`，账户在 `users.nix`，用户包和 Plasma 偏好在 `home.nix`。
+- `modules/nixos/desktop.nix` 管桌面、字体、输入法和 Brave。`ddns-go.nix` 管动态 DNS。
+- **代理**的系统服务和订阅目录在 `modules/nixos/mihomo.nix`，下载和校验在同目录的 `mihomo-subscription-update.sh`。KDE 和 Bash 共用的地址在 `modules/home/proxy-client.nix`，终端命令在同目录的 `proxy-client.bash`。
+- **Neovim** 直接读取 `modules/home/nvim/`。改 Lua 后重开编辑器即可，回滚系统代仍会读取当前工作树。用 `:PackUpdate` 升级插件后一起提交 `nvim-pack-lock.json`。
 
-- 启动菜单最多 10 条（`boot.loader.systemd-boot.configurationLimit`）
-- 每周 `nix-gc.timer` 自动删掉 7 天前的代，回收 store 并重写启动菜单；关机错过的那次会在开机后补跑
-- 想立刻清到只剩当前代，手动跑一次 `boot-clean`
+## 代理与 DDNS
 
-## 桌面
+**代理。** 在 `~/.config/mihomo/subscription-url` 写入一行 HTTPS 订阅地址，设为 `0600`，运行 `mihomo-update`。开机沿用上次配置，只有手动更新才拉取订阅。下载或校验失败会保留旧文件。若重启失败，`/var/lib/mihomo-subscription/config.yaml` 已经是新文件。用 `systemctl status mihomo` 查启动状态，再用一次代理请求确认端口可用。
 
-Plasma 设置由 `plasma-manager` 声明，并开启了 `overrideConfig`
+客户端默认使用 `127.0.0.1:7890`。订阅要提供 `mixed-port: 7890` 才能同时支持 HTTP 和 SOCKS。端口变更时同步修改 `proxy-client.nix` 的 `address`。已打开的其他 Bash 需要各自切换。
 
-- 每次 activation 会删除或重置未声明的 KDE 配置（Dolphin、KRunner/Klipper、窗口规则、键盘布局、全局快捷键等）
-- 面板/小部件布局（`appletsrc`）、代理开关（`kioslaverc`）和截图保存路径（`spectaclerc`）属于运行时状态，不在重置范围
-- 时钟的「显示秒」也在 GUI 里设置：它存在 `appletsrc` 里、绑定当前面板的 applet 编号，所以 Nix 不再写它
-- `plasmashellrc` 也保留，避免重跑 Plasma 迁移脚本
-- 壁纸由 `workspace.wallpaper` 固定为 `~/Pictures/bliss.jpg`
+**DDNS。** 管理页面在 `http://127.0.0.1:9876`。远程使用 `ssh -L 9876:127.0.0.1:9876 sakura@laurel` 转发后，在本机打开同一地址。配置和凭据保存在 `/var/lib/ddns-go/config.yaml`。
 
-Spectacle 自动保存到其默认截图目录。实际路径见 Spectacle 的图像保存设置
-
-| 截图范围 | 快捷键 | US 键盘按法 |
-| --- | --- | --- |
-| 整个桌面 | `Alt+%` | `Alt+Shift+5` |
-| 当前窗口 | `Alt+#` | `Alt+Shift+3` |
-| 矩形选区 | `Alt+$` | `Alt+Shift+4` |
-
-**Intel 视频解码**。这台 i5-12400 使用 iHD（VA-API）和 oneVPL（Quick Sync）
-
-- 播放本地或网页视频时，用 `sudo intel_gpu_top` 看 Video 引擎负载
-- Brave 中可用 `brave://media-internals` 检查当前视频选择的解码器
-- `vulkaninfo --summary` 可查看 Vulkan 枚举的 GPU 及其顺序
-
-## Neovim
-
-使用原生 Lua 和 `vim.pack`（Neovim 0.12+，当前 0.12.6）
-
-- `~/.config/nvim` 是指向 `modules/home/nvim` 的链接，改完 Lua 重新打开编辑器即可生效
-- `nvim-pack-lock.json` 已入库，新装按锁定的提交拉插件；升级插件用 `:PackUpdate`，锁文件的变化记得一起提交
-- 只改 `init.lua` 不需要重建系统，改 `home.nix` 里的包才需要 `rebuild`
-
-## 代理
-
-订阅文件 `~/.config/mihomo/subscription-url` 只放一行 HTTPS 地址，权限设为 `600`。目录由 `systemd.tmpfiles` 按 0700 建好，只差放文件：
-
-```bash
-chmod 600 ~/.config/mihomo/subscription-url
-```
-
-- 订阅**只在手动执行 `mihomo-update` 时更新**，开机和定时器都不会拉取
-- 已存在的配置会在开机时直接启动 mihomo，保持快速启动。首次安装或更换订阅后执行（新配置会先过 `mihomo -t`，校验不过就保留旧文件）
-
-```bash
-mihomo-update
-systemctl status mihomo
-```
-
-mihomo 的端口、模式、规则以订阅为准，本仓库不再覆盖 `mixed-port`/`port`
-
-- 客户端假设订阅在 `127.0.0.1:7890` 提供**混合代理**（`mixed-port: 7890`）；只写 `port:` 时同一个端口只收 HTTP，`all_proxy` 里的 SOCKS 会连不上
-- Bash、跟随系统代理的 Brave 和 KDE 应用共用 `127.0.0.1:7890`，本机回环地址直连
-- 如果订阅端口不是 7890，需要同步修改 `modules/home/proxy-client.nix`
-- 两个开关只改变客户端设置，mihomo 继续按原计划运行
-
-## DDNS
-
-`ddns-go` 以 `DynamicUser` 运行，网页只监听 `127.0.0.1:9876`，配置存在 `/var/lib/ddns-go/config.yaml`。远程配置时用 SSH 隧道：
-
-```bash
-ssh -L 9876:127.0.0.1:9876 sakura@laurel
-```
-
-然后在本机打开 `http://127.0.0.1:9876`。
-
-- 阿里云创建 RAM 子用户，只授予 `AliyunDNSFullAccess`，不要用主账号 AccessKey
-- 只启用 IPv6，获取方式选「通过命令获取」，避免拿到隐私临时地址：
+阿里云使用单独的 RAM 用户和 DNS 权限。配置 AAAA 记录，TTL 设为 600。IPv6 取址选「通过命令获取」，跳过临时地址和已弃用地址。
 
 ```bash
 dev=$(ip -6 route show default | awk '{print $5; exit}'); ip -6 addr show dev "$dev" scope global -temporary | awk '$1 == "inet6" && $0 !~ /deprecated/ {sub(/\/.*/, "", $2); print $2; exit}'
 ```
 
-- 域名填 `laurel.example.com` 这类 AAAA 记录，TTL 用 600
-- 不要给 9876 开防火墙；需要从公网访问的服务另开端口
+## 桌面与登录
 
-验证：
+- Plasma 会在激活时重置受管文件中的手动修改。面板布局、时钟、代理开关和截图目录可以在 GUI 调。壁纸需放在 `~/Pictures/bliss.jpg`。
+- `Ctrl+Alt+T` 打开 Ghostty。US 键盘用 `Alt+Shift+5` 截全屏、`Alt+Shift+3` 截活动窗口、`Alt+Shift+4` 截选区。
+- Brave 硬解可在播放视频时用 `sudo intel_gpu_top` 看 Video 引擎，或在 `brave://media-internals` 看解码器。
+- dsh 的终端界面首次需要运行 `dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui`，之后用 `dsh tui` 打开。
+- SSH 仅接受公钥。更换 `~/.ssh/authorized_keys` 时保留现有会话，用新会话验证。
+- root 和 sakura 共用 `/etc/nixos/sakura-password-hash`。改密码用 `sudo sh -c 'umask 077; mkpasswd > /etc/nixos/sakura-password-hash'`，再执行 `rebuild`。
 
-```bash
-resolvectl query laurel.example.com
-systemctl status ddns-go
-journalctl -u ddns-go -f
-```
+## 重装到现有磁盘
 
-## 密码
+先用 `lsblk -f` 核对 UUID。系统盘和 EFI 分区见 `hosts/laurel/hardware-configuration.nix`，数据盘见 `default.nix` 的 `dataDisks`。以下步骤复用原有子卷。需要 Wi-Fi 时，在安装环境运行 `nmcli --ask device wifi connect 'SSID'`。
 
-`/etc/nixos/sakura-password-hash` 是 root 和 sakura 共用的密码哈希。修改密码：
-
-```bash
-sudo sh -c 'umask 077; mkpasswd > /etc/nixos/sakura-password-hash'
-sudo chown root:root /etc/nixos/sakura-password-hash
-sudo chmod 600 /etc/nixos/sakura-password-hash
-sudo nixos-rebuild switch --flake ~/nixos-config#laurel
-```
-
-## 重装这台机器
-
-以下步骤复用已有的 Btrfs 子卷和 EFI 系统分区。先用 `lsblk -f` 和配置核对 UUID：系统盘与 ESP 在 `hosts/laurel/hardware-configuration.nix`，两块数据盘在 `hosts/laurel/default.nix` 的 `dataDisks`。重新分区或格式化会换 UUID，要改的是对应的那一处。数据盘带 `nofail`，UUID 对不上时机器照样进桌面，只是盘没挂上，别当成成功。
-
-### 数据盘命名
-
-- `maia` 是单盘 Btrfs（`nvme0n1`，2T）
-- `ganette` 是两块 256G SSD（`sda` + `sdb`）组成的多设备 Btrfs
-- 格式化时直接带上正确名字；这两条会清空盘上数据，只在准备重装时执行：
+**挂载。** 将下面两个设备路径换成核对过的值，在安装环境执行。
 
 ```bash
-sudo mkfs.btrfs -L maia /dev/nvme0n1
-sudo mkfs.btrfs -L ganette /dev/sda /dev/sdb
+root_dev=/dev/disk/by-uuid/系统盘UUID
+esp_dev=/dev/disk/by-uuid/EFI分区UUID
+sudo mount --mkdir -o subvol=@,compress=zstd:3,noatime "$root_dev" /mnt
+sudo mount --mkdir -o subvol=@home,compress=zstd:3,noatime "$root_dev" /mnt/home
+sudo mount --mkdir -o subvol=@nix,compress=zstd:3,noatime "$root_dev" /mnt/nix
+sudo mount --mkdir -o subvol=@log,compress=zstd:3,noatime "$root_dev" /mnt/var/log
+sudo mount --mkdir "$esp_dev" /mnt/boot
 ```
 
-已有文件系统改名不影响 UUID 和 fstab；换盘或标签不同步时，挂载后执行：
-
-```bash
-sudo btrfs filesystem label /home/sakura/maia maia
-sudo btrfs filesystem label /home/sakura/ganette ganette
-```
-
-标签存在 Btrfs 元数据里，多设备卷一条命令就同时更新两块盘；重登 Plasma 后 Dolphin 会显示 `maia` 和 `ganette`。
-
-### 挂载
-
-```bash
-ROOT=/dev/disk/by-uuid/4809a84e-4d94-49a4-b4f6-624b0ea24fa2
-ESP=/dev/disk/by-uuid/77E1-DAC4
-
-sudo mount --mkdir -o subvol=@,compress=zstd:3,noatime "$ROOT" /mnt
-sudo mount --mkdir -o subvol=@home,compress=zstd:3,noatime "$ROOT" /mnt/home
-sudo mount --mkdir -o subvol=@nix,compress=zstd:3,noatime "$ROOT" /mnt/nix
-sudo mount --mkdir -o subvol=@log,compress=zstd:3,noatime "$ROOT" /mnt/var/log
-sudo mount --mkdir "$ESP" /mnt/boot
-```
-
-### 安装环境联网
-
-安装镜像使用 NetworkManager 时：
-
-```bash
-nmcli device wifi connect "SSID名称" password "密码"
-```
-
-### 密码
-
-把仓库放在 `/mnt/home/sakura/nixos-config`。首次安装且目标卷还没有密码哈希时，在目标根卷生成：
+**准备账户。** 仓库应位于 `/mnt/home/sakura/nixos-config`。如果目标卷还没有密码哈希，执行以下命令。全新家目录还需要恢复 sakura 的 SSH 公钥。
 
 ```bash
 sudo mkdir -p /mnt/etc/nixos
 sudo sh -c 'umask 077; mkpasswd > /mnt/etc/nixos/sakura-password-hash'
-sudo chown root:root /mnt/etc/nixos/sakura-password-hash
-sudo chmod 600 /mnt/etc/nixos/sakura-password-hash
 ```
 
-### 安装
-
-ESP 已经挂到 `/mnt/boot`，再执行：
+**安装并验证。** 确认 EFI 分区已挂到 `/mnt/boot`，再运行安装命令。
 
 ```bash
-sudo nixos-install --root /mnt --no-root-passwd \
-  --flake /mnt/home/sakura/nixos-config#laurel \
+sudo nixos-install --root /mnt --no-root-passwd --flake /mnt/home/sakura/nixos-config#laurel \
   --option substituters https://mirrors.ustc.edu.cn/nix-channels/store
-
 sudo nixos-enter --root /mnt -c 'passwd -S root && passwd -S sakura'
 ```
 
-`passwd -S` 的第二列为 `P` 表示已设置密码。首次登录后确认 sakura 对 `~/nixos-config` 有写权限；如果需要代理，先放好 `~/.config/mihomo/subscription-url`，再执行 `mihomo-update`。
-
-## 其他本机设置
-
-固件走 LVFS：`sudo fwupdmgr refresh && sudo fwupdmgr update`（`services.fwupd` 已开）。
-
-需要 dsh 的终端界面时，运行 `dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui`，之后用 `dsh tui` 启动，Web 界面用 `dsh web`。
+两个账户的第二列都应为 `P`。首次登录后确认仓库可写，用 `findmnt -M ~/maia` 和 `findmnt -M ~/ganette` 核对数据盘。`maia` 是 2T 单盘，`ganette` 是两块 256G SSD 组成的 Btrfs 卷。两者都用了 `nofail`，挂载失败也能进入桌面。

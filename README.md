@@ -12,6 +12,7 @@
 | `hosts/laurel/home.nix` | 用户包、Plasma、Ghostty、Bash 别名 |
 | `modules/nixos/desktop.nix` | Plasma Login Manager、输入法、字体、音频、Haruna、Brave |
 | `modules/nixos/mihomo.nix` | mihomo 服务与手动订阅更新 unit |
+| `modules/nixos/ddns-go.nix` | ddns-go 服务，向阿里云 DNS 更新 IPv6 记录 |
 | `modules/home/proxy-client.nix` | Bash 与 KDE 的代理开关 |
 | `modules/home/nvim/init.lua` | Neovim 0.12+ 配置 |
 
@@ -24,19 +25,20 @@ sudo nixos-rebuild switch --flake .#laurel
 
 - 需要升级时执行 `update`（`nix flake update` + 重建，任意目录都行）
 - 格式化用 `nix fmt`（`nixfmt-tree`）
+- SSH 只接受公钥登录，密码和键盘交互认证已关闭；改 SSH 前先确认 `~/.ssh/authorized_keys` 里有可用公钥
 
 | 在 Bash 中输入 | 效果 |
 | --- | --- |
 | `rebuild` | 从任意目录重建并切换到 laurel 配置（用当前 `flake.lock`，不更新） |
 | `update` | `nix flake update` 后再 rebuild，即真正的滚动更新 |
-| `gc` | 立即执行每周使用的垃圾回收任务，沿用 14 天保留策略；结束后打印最后几行日志 |
 | `mihomo-update` | 手动拉取订阅，先过 mihomo 自己的配置校验，再替换并重启；开机不会自动拉取 |
 | `boot-clean` | 清理到只剩当前 generation：删系统 profile 的历史代 → 重建启动菜单 → 回收 store（不碰其他 profile） |
 | `proxy-on` / `proxy-off` | 同时切换当前终端和 KDE 桌面的代理，新开的 Bash 跟随该选择 |
 | `htop` | 查看 CPU、内存和进程 |
 
-- 启动菜单平时保留 10 条（`boot.loader.systemd-boot.configurationLimit`）
-- 需要回收时用 `boot-clean` 清到只剩当前一个
+- 启动菜单最多 10 条（`boot.loader.systemd-boot.configurationLimit`）
+- 每周 `nix-gc.timer` 自动删掉 7 天前的代，回收 store 并重写启动菜单；关机错过的那次会在开机后补跑
+- 想立刻清到只剩当前代，手动跑一次 `boot-clean`
 
 ## 桌面
 
@@ -92,6 +94,34 @@ mihomo 的端口、模式、规则以订阅为准，本仓库不再覆盖 `mixed
 - Bash、跟随系统代理的 Brave 和 KDE 应用共用 `127.0.0.1:7890`，本机回环地址直连
 - 如果订阅端口不是 7890，需要同步修改 `modules/home/proxy-client.nix`
 - 两个开关只改变客户端设置，mihomo 继续按原计划运行
+
+## DDNS
+
+`ddns-go` 以 `DynamicUser` 运行，网页只监听 `127.0.0.1:9876`，配置存在 `/var/lib/ddns-go/config.yaml`。远程配置时用 SSH 隧道：
+
+```bash
+ssh -L 9876:127.0.0.1:9876 sakura@laurel
+```
+
+然后在本机打开 `http://127.0.0.1:9876`。
+
+- 阿里云创建 RAM 子用户，只授予 `AliyunDNSFullAccess`，不要用主账号 AccessKey
+- 只启用 IPv6，获取方式选「通过命令获取」，避免拿到隐私临时地址：
+
+```bash
+dev=$(ip -6 route show default | awk '{print $5; exit}'); ip -6 addr show dev "$dev" scope global -temporary | awk '$1 == "inet6" && $0 !~ /deprecated/ {sub(/\/.*/, "", $2); print $2; exit}'
+```
+
+- 域名填 `laurel.example.com` 这类 AAAA 记录，TTL 用 600
+- 不要给 9876 开防火墙；需要从公网访问的服务另开端口
+
+验证：
+
+```bash
+resolvectl query laurel.example.com
+systemctl status ddns-go
+journalctl -u ddns-go -f
+```
 
 ## 密码
 

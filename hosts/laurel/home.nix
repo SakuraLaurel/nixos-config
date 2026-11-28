@@ -8,20 +8,17 @@ let
   repoPath = "${config.home.homeDirectory}/nixos-config";
   nvimConfig = "${repoPath}/modules/home/nvim";
 
-  # 多步维护命令交给 writeShellApplication：由 shellcheck 检查，PATH 也固定下来。
+  # 多步维护命令交给 writeShellApplication：由 shellcheck 检查，二进制用绝对路径。
   # 单行的 rebuild/update 继续用别名，改起来更短。
   bootClean = pkgs.writeShellApplication {
     name = "boot-clean";
-    runtimeInputs = with pkgs; [
-      nix
-      coreutils
-      sudo
-    ];
     text = ''
-      # 只删系统 profile 的历史代；回收 store 时不加 -d，别动其他 profile 的代。
-      sudo nix-env -p /nix/var/nix/profiles/system --delete-generations old
-      sudo /run/current-system/bin/switch-to-configuration boot
-      sudo nix-collect-garbage
+      # 必须用 NixOS 的 setuid 包装器：store 里的 pkgs.sudo 没有 setuid 位。
+      # 只删系统 profile 的历史代，当前代和其他 profile 不动。
+      /run/wrappers/bin/sudo ${pkgs.nix}/bin/nix-env -p /nix/var/nix/profiles/system --delete-generations old
+      # 按 profile 的当代重建启动菜单，再回收已经没人引用的 store 路径。
+      /run/wrappers/bin/sudo /nix/var/nix/profiles/system/bin/switch-to-configuration boot
+      /run/wrappers/bin/sudo ${pkgs.nix}/bin/nix-collect-garbage
     '';
   };
 
@@ -181,7 +178,6 @@ in
   programs.bash = {
     enable = true;
     shellAliases = {
-      gc = "sudo systemctl start nix-gc.service && journalctl -u nix-gc.service -n 5 --no-pager";
       rebuild = ''nixos-rebuild switch --flake "${repoPath}#laurel" --sudo'';
       update = ''nix flake update --flake "${repoPath}" && nixos-rebuild switch --flake "${repoPath}#laurel" --sudo'';
     };

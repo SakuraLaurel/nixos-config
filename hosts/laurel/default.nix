@@ -16,12 +16,16 @@ let
     "nofail"
     "x-systemd.device-timeout=10s"
   ];
+  # 删代后重写启动菜单，否则 /boot 里会留下指向已删 store 路径的旧项。
+  # 用 profile 里的当代而不是 /run/current-system：跑过 `nixos-rebuild boot` 后两者会不一致。
+  updateBootMenu = "/nix/var/nix/profiles/system/bin/switch-to-configuration boot";
 in
 {
   imports = [
     ./hardware-configuration.nix
     ./users.nix
     ../../modules/nixos/desktop.nix
+    ../../modules/nixos/ddns-go.nix
     ../../modules/nixos/mihomo.nix
   ];
 
@@ -39,13 +43,17 @@ in
       ];
     };
     gc = {
+      # 每周删掉 7 天前的代，最近一周留作回滚。
       automatic = true;
       dates = "weekly";
-      options = "--delete-older-than 14d";
+      options = "--delete-older-than 7d";
     };
     # 定时做 hardlink 优化，替代每次构建都跑的 auto-optimise-store。
     optimise.automatic = true;
   };
+
+  # nix-collect-garbage 只删代，不会自己更新 /boot，这里补一步重写菜单。
+  systemd.services.nix-gc.postStart = updateBootMenu;
 
   boot = {
     kernelPackages = pkgs.linuxPackages_latest;
@@ -53,7 +61,7 @@ in
       efi.canTouchEfiVariables = true;
       systemd-boot = {
         enable = true;
-        # 平时菜单保留 10 条；要回收就用 boot-clean 清到只剩当前。
+        # 菜单最多 10 条；想立刻清到只剩当代用 boot-clean。
         configurationLimit = 10;
       };
     };
@@ -64,6 +72,9 @@ in
     hostName = "laurel";
     networkmanager.enable = true;
   };
+
+  # 首次启动后访问 http://127.0.0.1:9876 配置阿里云 DNS。
+  services.ddns-go.enable = true;
 
   # 注：Wi-Fi 连接需勾选“忽略自动 DNS”，否则DHCP 下发的 DNS 会被并行查询。
   services.resolved = {
@@ -98,7 +109,12 @@ in
 
   services.openssh = {
     enable = true;
-    settings.PermitRootLogin = "no";
+    settings = {
+      PermitRootLogin = "no";
+      # 只留公钥登录；密码和 PAM 键盘交互都关掉。
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+    };
   };
 
   hardware.graphics = {
